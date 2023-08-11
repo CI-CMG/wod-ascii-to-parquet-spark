@@ -1,6 +1,7 @@
 package edu.colorado.cires.wod.spark.w2p;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 
 import java.io.File;
@@ -12,8 +13,8 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.apache.spark.sql.SparkSession;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -28,24 +29,16 @@ import software.amazon.awssdk.services.s3.S3Client;
 @Testcontainers
 public class SparklerExecutorTest {
 
-//  private static final Path MOCK_BUCKET_DIR = Paths.get("target/mockS3").toAbsolutePath();
   private static final Path TEMP_DIR = Paths.get("target/temp-dir").toAbsolutePath();
-//  private static S3Mock s3Mock;
 
 
-  @BeforeAll
-  public static void beforeAll() throws IOException {
-//    FileUtils.deleteQuietly(MOCK_BUCKET_DIR.toFile());
+  @BeforeEach
+  public void before() throws IOException {
     FileUtils.deleteQuietly(TEMP_DIR.toFile());
-//    Files.createDirectories(MOCK_BUCKET_DIR);
-//    s3Mock = new S3Mock.Builder().withFileBackend(MOCK_BUCKET_DIR.toString()).withPort(8754).build();
-//    s3Mock.start();
   }
 
-  @AfterAll
-  public static void afterAll() throws IOException {
-//    s3Mock.shutdown();
-//    FileUtils.deleteQuietly(MOCK_BUCKET_DIR.toFile());
+  @AfterEach
+  public void after() throws IOException {
     FileUtils.deleteQuietly(TEMP_DIR.toFile());
   }
 
@@ -67,65 +60,55 @@ public class SparklerExecutorTest {
         .builder()
         .appName("test")
         .master("local[*]")
-
-//        .config("spark.hadoop.fs.s3a.path.style.access", "true")
-//        .config("spark.hadoop.fs.s3a.endpoint", "http://localhost:8754")
-//        .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider")
-//        .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1")
-
         .config("spark.hadoop.fs.s3a.bucket.wod-parquet.access.key", localstack.getAccessKey())
         .config("spark.hadoop.fs.s3a.bucket.wod-parquet.secret.key", localstack.getSecretKey())
         .config("spark.hadoop.fs.s3a.endpoint", localstack.getEndpoint().toString())
         .config("spark.hadoop.fs.s3a.endpoint.region", localstack.getRegion())
-
         .getOrCreate();
+    try {
+      S3Client s3 = S3Client.builder()
+          .credentialsProvider(StaticCredentialsProvider.create(
+              AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())
+          ))
+          .endpointOverride(localstack.getEndpoint())
+          .region(Region.of(localstack.getRegion()))
+          .build();
 
-    S3Client s3 = S3Client.builder()
-//        .serviceConfiguration(S3Configuration.builder()
-//            .pathStyleAccessEnabled(true)
-//            .build())
-//        .credentialsProvider(AnonymousCredentialsProvider.create())
-//        .endpointOverride(new URI("http://localhost:8754"))
-//        .region(Region.US_EAST_1)
+      s3.createBucket(c -> c.bucket(sourceBucket));
+      s3.createBucket(c -> c.bucket(outputBucket));
 
-        .credentialsProvider(StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())
-        ))
-        .endpointOverride(localstack.getEndpoint())
-        .region(Region.of(localstack.getRegion()))
+      assertTrue(S3Actions.listObjects(s3, outputBucket, null, k -> true).isEmpty());
 
-        .build();
+      s3.putObject(c -> c.bucket(sourceBucket).key("APB/OBS/APBO1997.gz"),
+          RequestBody.fromFile(new File("src/test/resources/wod/APB/OBS/APBO1997.gz")));
+      s3.putObject(c -> c.bucket(sourceBucket).key("CTD/OBS/CTDO1971.gz"),
+          RequestBody.fromFile(new File("src/test/resources/wod/CTD/OBS/CTDO1971.gz")));
+      s3.putObject(c -> c.bucket(sourceBucket).key("CTD/STD/CTDS1967.gz"),
+          RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
 
-    s3.createBucket(c -> c.bucket(sourceBucket));
-    s3.createBucket(c -> c.bucket(outputBucket));
+      SparklerExecutor executor = new SparklerExecutor(spark, s3, sourceBucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
+          outputBucket, outputPrefix, datasets, processingLevels, 3, false);
+      executor.execute();
 
-    assertTrue(S3Actions.listObjects(s3, outputBucket, null, k -> true).isEmpty());
+      Set<String> keys = S3Actions.listObjects(s3, outputBucket, null, k -> true);
+      System.err.println(keys);
+      assertTrue(keys.contains("dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
+      assertTrue(keys.contains("dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
+      assertTrue(keys.contains("dataset/STD/WOD_CTD_STD.parquet/_SUCCESS"));
 
-    s3.putObject(c -> c.bucket(sourceBucket).key("APB/OBS/APBO1997.gz"),
-        RequestBody.fromFile(new File("src/test/resources/wod/APB/OBS/APBO1997.gz")));
-    s3.putObject(c -> c.bucket(sourceBucket).key("CTD/OBS/CTDO1971.gz"),
-        RequestBody.fromFile(new File("src/test/resources/wod/CTD/OBS/CTDO1971.gz")));
-    s3.putObject(c -> c.bucket(sourceBucket).key("CTD/STD/CTDS1967.gz"),
-        RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
+      assertTrue(keys.contains("yearly/CTD/STD/CTDS1967.parquet/_SUCCESS"));
+      assertTrue(keys.contains("yearly/CTD/OBS/CTDO1971.parquet/_SUCCESS"));
+      assertTrue(keys.contains("yearly/APB/OBS/APBO1997.parquet/_SUCCESS"));
+    } finally {
+      spark.close();
+    }
 
-    SparklerExecutor executor = new SparklerExecutor(spark, s3, sourceBucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
-        outputBucket, outputPrefix, datasets, processingLevels, 3, false);
-    executor.execute();
-
-    Set<String> keys = S3Actions.listObjects(s3, outputBucket, null, k -> true);
-    System.err.println(keys);
-    assertTrue(keys.contains("dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
-    assertTrue(keys.contains("dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
-    assertTrue(keys.contains("dataset/STD/WOD_CTD_STD.parquet/_SUCCESS"));
-
-    assertTrue(keys.contains("yearly/null/CTD/STD/CTDS1967.parquet/_SUCCESS"));
-    assertTrue(keys.contains("yearly/null/CTD/OBS/CTDO1971.parquet/_SUCCESS"));
-    assertTrue(keys.contains("yearly/null/APB/OBS/APBO1997.parquet/_SUCCESS"));
 
   }
 
   @Test
   public void testPrefix() throws Exception {
+
     String bucket = "test-bucket";
     String sourcePrefix = "wod-ascii";
     Set<String> sourceFileSubset = null;
@@ -142,37 +125,41 @@ public class SparklerExecutorTest {
         .config("spark.hadoop.fs.s3a.endpoint", localstack.getEndpoint().toString())
         .config("spark.hadoop.fs.s3a.endpoint.region", localstack.getRegion())
         .getOrCreate();
+    try {
+      S3Client s3 = S3Client.builder()
+          .credentialsProvider(StaticCredentialsProvider.create(
+              AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())
+          ))
+          .endpointOverride(localstack.getEndpoint())
+          .region(Region.of(localstack.getRegion()))
+          .build();
 
-    S3Client s3 = S3Client.builder()
-        .credentialsProvider(StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())
-        ))
-        .endpointOverride(localstack.getEndpoint())
-        .region(Region.of(localstack.getRegion()))
-        .build();
+      s3.createBucket(c -> c.bucket(bucket));
 
-    s3.createBucket(c -> c.bucket(bucket));
+      assertTrue(S3Actions.listObjects(s3, bucket, null, k -> true).isEmpty());
 
-    assertTrue(S3Actions.listObjects(s3, bucket, null, k -> true).isEmpty());
+      s3.putObject(c -> c.bucket(bucket).key("wod-ascii/APB/OBS/APBO1997.gz"),
+          RequestBody.fromFile(new File("src/test/resources/wod/APB/OBS/APBO1997.gz")));
+      s3.putObject(c -> c.bucket(bucket).key("wod-ascii/CTD/OBS/CTDO1971.gz"),
+          RequestBody.fromFile(new File("src/test/resources/wod/CTD/OBS/CTDO1971.gz")));
+      s3.putObject(c -> c.bucket(bucket).key("wod-ascii/CTD/STD/CTDS1967.gz"),
+          RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
 
-    s3.putObject(c -> c.bucket(bucket).key("wod-ascii/APB/OBS/APBO1997.gz"),
-        RequestBody.fromFile(new File("src/test/resources/wod/APB/OBS/APBO1997.gz")));
-    s3.putObject(c -> c.bucket(bucket).key("wod-ascii/CTD/OBS/CTDO1971.gz"),
-        RequestBody.fromFile(new File("src/test/resources/wod/CTD/OBS/CTDO1971.gz")));
-    s3.putObject(c -> c.bucket(bucket).key("wod-ascii/CTD/STD/CTDS1967.gz"),
-        RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
+      SparklerExecutor executor = new SparklerExecutor(spark, s3, bucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
+          bucket, outputPrefix, datasets, processingLevels, 3, false);
+      executor.execute();
 
-    SparklerExecutor executor = new SparklerExecutor(spark, s3, bucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
-        bucket, outputPrefix, datasets, processingLevels, 3, false);
-    executor.execute();
+      Set<String> keys = S3Actions.listObjects(s3, bucket, null, k -> true);
+      System.out.println(keys);
+      assertTrue(keys.contains("wod-parquet/dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
+      assertFalse(keys.contains("wod-parquet/dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
+      assertFalse(keys.contains("wod-parquet/dataset/STD/WOD_CTD_STD.parquet/_SUCCESS"));
 
-    Set<String> keys = S3Actions.listObjects(s3, bucket, null, k -> true);
-    System.out.println(keys);
-    assertTrue(keys.contains("wod-parquet/dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
-    assertFalse(keys.contains("wod-parquet/dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
-    assertFalse(keys.contains("wod-parquet/dataset/STD/WOD_CTD_STD.parquet/_SUCCESS"));
+      assertTrue(keys.contains("wod-parquet/yearly/APB/OBS/APBO1997.parquet/_SUCCESS"));
+    } finally {
+      spark.close();
+    }
 
-    assertTrue(keys.contains("wod-parquet/yearly/wod-ascii/APB/OBS/APBO1997.parquet/_SUCCESS"));
 
   }
 

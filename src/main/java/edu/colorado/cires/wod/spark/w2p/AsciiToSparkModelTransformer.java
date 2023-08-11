@@ -8,6 +8,7 @@ import edu.colorado.cires.wod.parquet.model.Metadata;
 import edu.colorado.cires.wod.parquet.model.PrincipalInvestigator;
 import edu.colorado.cires.wod.parquet.model.ProfileData;
 import edu.colorado.cires.wod.parquet.model.QcAttribute;
+import edu.colorado.cires.wod.parquet.model.TaxonomicDataset;
 import edu.colorado.cires.wod.parquet.model.Variable;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -89,8 +90,8 @@ public class AsciiToSparkModelTransformer {
     return Attribute.builder().withCode(asciiAttribute.getCode()).withValue(asciiAttribute.getValue()).build();
   }
 
-  private static List<QcAttribute> map(List<edu.colorado.cires.wod.ascii.model.QcAttribute> asciiQcAttributes) {
-    return asciiQcAttributes.stream().map(AsciiToSparkModelTransformer::map).collect(Collectors.toList());
+  private static TaxonomicDataset map(List<edu.colorado.cires.wod.ascii.model.QcAttribute> asciiQcAttributes) {
+    return TaxonomicDataset.builder().withAttributes(asciiQcAttributes.stream().map(AsciiToSparkModelTransformer::map).collect(Collectors.toList())).build();
   }
 
   private static QcAttribute map(edu.colorado.cires.wod.ascii.model.QcAttribute asciiQcAttribute) {

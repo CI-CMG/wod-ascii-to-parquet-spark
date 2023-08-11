@@ -191,7 +191,6 @@ public class DatasetYearTrain implements Callable<String> {
   }
 
   private String resolveKeyPrefix() {
-//    StringBuilder sb = new StringBuilder("s3a://").append(outputBucket).append("/");
     StringBuilder sb = new StringBuilder();
     if (outputPrefix != null) {
       sb.append(outputPrefix.replaceAll("/+$", "")).append("/");
@@ -199,7 +198,6 @@ public class DatasetYearTrain implements Callable<String> {
     String[] split = key.split("/");
     String file = split[split.length - 1].replaceAll("\\.gz$", ".parquet");
     sb.append("yearly/")
-        .append(inputPrefix).append("/")
         .append(dataset).append("/").append(processingLevel).append("/").append(file);
     return sb.toString();
   }
