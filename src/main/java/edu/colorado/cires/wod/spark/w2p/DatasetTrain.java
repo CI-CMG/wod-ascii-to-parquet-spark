@@ -59,8 +59,7 @@ public class DatasetTrain {
     Predicate<String> filter = resolveFilter();
     Set<String> keys = listObjects(s3, sourceBucket, keyPrefix, filter);
     return keys.stream()
-        .map(key -> new DatasetYearTrain(this, spark, s3, dataset, sourceBucket, tempDir, processingLevel, outputBucket, outputPrefix, key, overwrite,
-            sourcePrefix))
+        .map(key -> new DatasetYearTrain(this, spark, s3, dataset, sourceBucket, tempDir, processingLevel, outputBucket, outputPrefix, key, overwrite))
         .collect(Collectors.toList());
   }
 
