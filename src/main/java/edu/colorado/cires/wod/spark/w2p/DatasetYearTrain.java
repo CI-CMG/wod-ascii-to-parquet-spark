@@ -25,17 +25,13 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.zip.GZIPInputStream;
-import org.apache.spark.scheduler.JobFailed;
-import org.apache.spark.scheduler.JobResult;
-import org.apache.spark.scheduler.SparkListener;
-import org.apache.spark.scheduler.SparkListenerJobEnd;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.SparkSession;
 import software.amazon.awssdk.services.s3.S3Client;
 
 public class DatasetYearTrain implements Callable<String> {
 
-  private static final int BATCH_SIZE = 10000;
+  private static final int BATCH_SIZE = 1000;
 
   private final DatasetTrain datasetTrain;
   private final SparkSession spark;
@@ -49,12 +45,11 @@ public class DatasetYearTrain implements Callable<String> {
   private final String key;
   private final String outputParquet;
   private final boolean overwrite;
-  private final String inputPrefix;
   private final String keyPrefix;
 
   public DatasetYearTrain(DatasetTrain datasetTrain, SparkSession spark, S3Client s3, String dataset, String sourceBucket, Path tempDir,
       String processingLevel, String outputBucket,
-      String outputPrefix, String key, boolean overwrite, String inputPrefix) {
+      String outputPrefix, String key, boolean overwrite) {
     this.datasetTrain = datasetTrain;
     this.spark = spark;
     this.s3 = s3;
@@ -66,7 +61,6 @@ public class DatasetYearTrain implements Callable<String> {
     this.outputPrefix = outputPrefix;
     this.key = key;
     this.overwrite = overwrite;
-    this.inputPrefix = inputPrefix;
     keyPrefix = resolveKeyPrefix();
     outputParquet = new StringBuilder("s3a://").append(outputBucket).append("/").append(keyPrefix).toString();
   }
