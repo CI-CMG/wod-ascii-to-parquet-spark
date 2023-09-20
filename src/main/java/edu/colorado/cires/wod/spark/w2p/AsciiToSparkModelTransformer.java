@@ -17,11 +17,13 @@ import java.util.stream.Collectors;
 
 public class AsciiToSparkModelTransformer {
 
-  private static final int GEOHASH_LENGTH = 4;
+  private static final int GEOHASH_LENGTH = 3;
 
   public static Cast fromAsciiModel(edu.colorado.cires.wod.ascii.model.Cast asciiCast) {
     return Cast.builder()
         .withCastNumber(asciiCast.getCastNumber())
+        .withCruiseNumber(asciiCast.getCruiseNumber())
+        .withOriginatorsStationCode(asciiCast.getOriginatorsStationCode())
         .withYear(asciiCast.getYear())
         .withMonth(asciiCast.getMonth())
         .withDay(asciiCast.getDay())
