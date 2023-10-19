@@ -1,6 +1,5 @@
 package edu.colorado.cires.wod.spark.w2p;
 
-import static edu.colorado.cires.wod.spark.w2p.AsciiToSparkModelTransformer.fromAsciiModel;
 import static edu.colorado.cires.wod.spark.w2p.DatasetTrain.MAX_RECORDS_PER_FILE;
 import static edu.colorado.cires.wod.spark.w2p.FileActions.mkdirForFile;
 import static edu.colorado.cires.wod.spark.w2p.FileActions.rm;
@@ -12,6 +11,7 @@ import static edu.colorado.cires.wod.spark.w2p.S3Actions.listObjects;
 import edu.colorado.cires.wod.ascii.reader.BufferedCharReader;
 import edu.colorado.cires.wod.ascii.reader.CastFileReader;
 import edu.colorado.cires.wod.parquet.model.Cast;
+import edu.colorado.cires.wod.transformer.ascii2parquet.WodAsciiParquetTransformer;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,6 +32,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 public class DatasetYearTrain implements Callable<String> {
 
   private static final int BATCH_SIZE = 1000;
+  private static final int GEOHASH_LENGTH = 3;
 
   private final DatasetTrain datasetTrain;
   private final SparkSession spark;
@@ -110,7 +111,7 @@ public class DatasetYearTrain implements Callable<String> {
 
     try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new GZIPInputStream(new BufferedInputStream(inputStream))))) {
 
-      CastFileReader reader = new CastFileReader(new BufferedCharReader(bufferedReader), dataset, null);
+      CastFileReader reader = new CastFileReader(new BufferedCharReader(bufferedReader), dataset);
 
       final BlockingQueue<CastWrapper> transferQueue = new LinkedBlockingDeque<>(BATCH_SIZE);
       final Thread writer = new Thread(() -> {
@@ -147,7 +148,7 @@ public class DatasetYearTrain implements Callable<String> {
 
       try {
         while (reader.hasNext()) {
-          Cast cast = fromAsciiModel(reader.next());
+          Cast cast = WodAsciiParquetTransformer.parquetFromAscii(reader.next(), GEOHASH_LENGTH);
           try {
             transferQueue.put(new CastWrapper(cast));
           } catch (InterruptedException e) {
