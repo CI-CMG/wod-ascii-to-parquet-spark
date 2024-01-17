@@ -10,7 +10,6 @@ import org.apache.spark.scheduler.JobFailed;
 import org.apache.spark.scheduler.JobResult;
 import org.apache.spark.scheduler.SparkListener;
 import org.apache.spark.scheduler.SparkListenerJobEnd;
-import org.apache.spark.scheduler.SparkListenerJobStart;
 import org.apache.spark.sql.SparkSession;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -67,6 +66,9 @@ public class Sparkler implements Serializable, Runnable {
   @Option(names = {"-os", "--output-secret"}, description = "An optional secret key for the output bucket")
   private String outputSecretKey;
 
+  @Option(names = {"-bs", "--batch-size"}, description = "Number of casts to insert per thread")
+  private int batchSize = 10000;
+
   @Override
   public void run() {
     SparkSession.Builder sparkBuilder = SparkSession.builder()
@@ -112,7 +114,7 @@ public class Sparkler implements Serializable, Runnable {
         new TreeSet<>(datasets),
         new TreeSet<>(processingLevels),
         concurrency,
-        overwrite);
+        overwrite, batchSize);
     try {
       executor.execute();
     } catch (IOException e) {

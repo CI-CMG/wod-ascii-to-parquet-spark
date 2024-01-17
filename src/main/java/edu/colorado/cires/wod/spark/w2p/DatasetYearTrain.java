@@ -31,7 +31,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 public class DatasetYearTrain implements Callable<String> {
 
-  private static final int BATCH_SIZE = 1000;
+  private final int batchSize;
   private static final int GEOHASH_LENGTH = 3;
 
   private final DatasetTrain datasetTrain;
@@ -50,7 +50,8 @@ public class DatasetYearTrain implements Callable<String> {
 
   public DatasetYearTrain(DatasetTrain datasetTrain, SparkSession spark, S3Client s3, String dataset, String sourceBucket, Path tempDir,
       String processingLevel, String outputBucket,
-      String outputPrefix, String key, boolean overwrite) {
+      String outputPrefix, String key, boolean overwrite, int batchSize) {
+    this.batchSize = batchSize;
     this.datasetTrain = datasetTrain;
     this.spark = spark;
     this.s3 = s3;
@@ -113,7 +114,7 @@ public class DatasetYearTrain implements Callable<String> {
 
       CastFileReader reader = new CastFileReader(new BufferedCharReader(bufferedReader), dataset);
 
-      final BlockingQueue<CastWrapper> transferQueue = new LinkedBlockingDeque<>(BATCH_SIZE);
+      final BlockingQueue<CastWrapper> transferQueue = new LinkedBlockingDeque<>(batchSize);
       final Thread writer = new Thread(() -> {
         CastWrapper castWrapper;
         try {
@@ -122,16 +123,16 @@ public class DatasetYearTrain implements Callable<String> {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
         }
-        List<Cast> batch = new ArrayList<>(BATCH_SIZE);
+        List<Cast> batch = new ArrayList<>(batchSize);
         boolean first = true;
         while (!castWrapper.isPoison()) {
-          if (batch.size() < BATCH_SIZE) {
+          if (batch.size() < batchSize) {
             batch.add(castWrapper.getCast());
           }
-          if (batch.size() == BATCH_SIZE) {
+          if (batch.size() == batchSize) {
             writeBatch(batch, outputParquet, first);
             first = false;
-            batch = new ArrayList<>(BATCH_SIZE);
+            batch = new ArrayList<>(batchSize);
           }
           try {
             castWrapper = transferQueue.take();

@@ -36,10 +36,12 @@ public class DatasetTrain {
   private final String outputBucket;
   private final String outputPrefix;
   private final boolean overwrite;
+  private final int batchSize;
 
 
   public DatasetTrain(SparkSession spark, S3Client s3, String dataset, String sourceBucket, String sourcePrefix, Path tempDir,
-      String processingLevel, Set<String> sourceFileSubset, String outputBucket, String outputPrefix, boolean overwrite) {
+      String processingLevel, Set<String> sourceFileSubset, String outputBucket, String outputPrefix, boolean overwrite, int batchSize) {
+    this.batchSize = batchSize;
     this.spark = spark;
     this.s3 = s3;
     this.dataset = dataset;
@@ -59,7 +61,7 @@ public class DatasetTrain {
     Predicate<String> filter = resolveFilter();
     Set<String> keys = listObjects(s3, sourceBucket, keyPrefix, filter);
     return keys.stream()
-        .map(key -> new DatasetYearTrain(this, spark, s3, dataset, sourceBucket, tempDir, processingLevel, outputBucket, outputPrefix, key, overwrite))
+        .map(key -> new DatasetYearTrain(this, spark, s3, dataset, sourceBucket, tempDir, processingLevel, outputBucket, outputPrefix, key, overwrite, batchSize))
         .collect(Collectors.toList());
   }
 
