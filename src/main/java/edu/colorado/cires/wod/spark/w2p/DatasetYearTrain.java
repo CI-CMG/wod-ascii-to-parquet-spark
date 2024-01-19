@@ -17,6 +17,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -47,10 +48,13 @@ public class DatasetYearTrain implements Callable<String> {
   private final String outputParquet;
   private final boolean overwrite;
   private final String keyPrefix;
+  private final TransformationErrorHandler transformationErrorHandler;
+  private final boolean emr;
 
   public DatasetYearTrain(DatasetTrain datasetTrain, SparkSession spark, S3Client s3, String dataset, String sourceBucket, Path tempDir,
       String processingLevel, String outputBucket,
-      String outputPrefix, String key, boolean overwrite, int batchSize) {
+      String outputPrefix, String key, boolean overwrite, int batchSize,
+      TransformationErrorHandler transformationErrorHandler, boolean emr) {
     this.batchSize = batchSize;
     this.datasetTrain = datasetTrain;
     this.spark = spark;
@@ -63,8 +67,10 @@ public class DatasetYearTrain implements Callable<String> {
     this.outputPrefix = outputPrefix;
     this.key = key;
     this.overwrite = overwrite;
+    this.transformationErrorHandler = transformationErrorHandler;
+    this.emr = emr;
     keyPrefix = resolveKeyPrefix();
-    outputParquet = new StringBuilder("s3a://").append(outputBucket).append("/").append(keyPrefix).toString();
+    outputParquet = new StringBuilder(emr ? "s3://" : "s3a://").append(outputBucket).append("/").append(keyPrefix).toString();
   }
 
   public DatasetTrain getDatasetTrain() {
@@ -81,21 +87,21 @@ public class DatasetYearTrain implements Callable<String> {
       if (overwrite || !listObjects(s3, outputBucket, keyPrefix + "/_temporary/", x -> true).isEmpty()) {
         deletePrefix(s3, outputBucket, keyPrefix + "/");
       }
-      if (exists(s3, outputBucket, keyPrefix + "/_SUCCESS")) {
-        System.err.println("Skipping existing " + outputParquet);
-      } else {
-        System.err.println("Free space: " + (tempDir.toFile().getFreeSpace() / 1024 / 1024) + "MiB");
-        System.err.println("Downloading s3://" + sourceBucket + "/" + key);
-        Path file = tempDir.resolve(key);
-        System.err.println("Done downloading s3://" + sourceBucket + "/" + key);
-        mkdirForFile(file);
-        try {
-          download(s3, sourceBucket, key, file);
-          processFile(file, outputParquet);
-        } finally {
-          rm(file);
+        if (exists(s3, outputBucket, keyPrefix + "/_SUCCESS")) {
+          System.err.println("Skipping existing " + outputParquet);
+        } else {
+          System.err.println("Free space: " + (tempDir.toFile().getFreeSpace() / 1024 / 1024) + "MiB");
+          System.err.println("Downloading s3://" + sourceBucket + "/" + key);
+          Path file = tempDir.resolve(key);
+          System.err.println("Done downloading s3://" + sourceBucket + "/" + key);
+          mkdirForFile(file);
+          try {
+            download(s3, sourceBucket, key, file);
+            processFile(file, outputParquet);
+          } finally {
+            rm(file);
+          }
         }
-      }
     } catch (IOException e) {
       throw new IllegalStateException("Unable to process file " + key, e);
     }
@@ -110,7 +116,7 @@ public class DatasetYearTrain implements Callable<String> {
 
   private void processFile(InputStream inputStream, String outputParquet) throws IOException {
 
-    try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new GZIPInputStream(new BufferedInputStream(inputStream))))) {
+    try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new GZIPInputStream(new BufferedInputStream(inputStream)), StandardCharsets.UTF_8))) {
 
       CastFileReader reader = new CastFileReader(new BufferedCharReader(bufferedReader), dataset);
 
@@ -149,12 +155,15 @@ public class DatasetYearTrain implements Callable<String> {
 
       try {
         while (reader.hasNext()) {
-          Cast cast = WodAsciiParquetTransformer.parquetFromAscii(reader.next(), GEOHASH_LENGTH);
+          edu.colorado.cires.wod.ascii.model.Cast asciiCast = reader.next();
           try {
+            Cast cast = WodAsciiParquetTransformer.parquetFromAscii(asciiCast, GEOHASH_LENGTH);
             transferQueue.put(new CastWrapper(cast));
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
+          } catch (Exception e) {
+            transformationErrorHandler.handleError(asciiCast, e);
           }
         }
       } finally {

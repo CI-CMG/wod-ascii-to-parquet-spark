@@ -1,5 +1,8 @@
 package edu.colorado.cires.wod.spark.w2p;
 
+import edu.colorado.cires.cmg.s3out.MultipartUploadRequest;
+import edu.colorado.cires.cmg.s3out.S3ClientMultipartUpload;
+import edu.colorado.cires.cmg.s3out.S3OutputStream;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -13,13 +16,16 @@ import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.apache.commons.io.IOUtils;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class S3Actions {
@@ -33,6 +39,29 @@ public class S3Actions {
         OutputStream out = new BufferedOutputStream(Files.newOutputStream(file));
     ) {
       IOUtils.copy(in, out);
+    }
+  }
+
+  public static void upload(S3Client s3, String bucket, String key, Path file) throws IOException {
+    PutObjectRequest putOb = PutObjectRequest.builder()
+        .bucket(bucket)
+        .key(key)
+        .build();
+    s3.putObject(putOb, RequestBody.fromFile(file.toFile()));
+  }
+
+  public static void uploadDirectory(S3Client s3, String bucket, String baseKey, Path dir) throws IOException {
+    Path normalizedDir = dir.toAbsolutePath().normalize();
+    try (Stream<Path> paths = Files.walk(normalizedDir)){
+      paths.forEach(path -> {
+        if (Files.isRegularFile(path)) {
+          try {
+            upload(s3, bucket, baseKey + "/" + normalizedDir.relativize(path), path);
+          } catch (IOException e) {
+            throw new RuntimeException("Unable to upload file " + path, e);
+          }
+        }
+      });
     }
   }
 

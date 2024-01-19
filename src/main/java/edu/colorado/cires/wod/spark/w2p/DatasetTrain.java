@@ -23,7 +23,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 public class DatasetTrain {
 
-  public static final int MAX_RECORDS_PER_FILE = 500000;
+  public static final int MAX_RECORDS_PER_FILE = 20000;
 
   private final SparkSession spark;
   private final S3Client s3;
@@ -37,10 +37,11 @@ public class DatasetTrain {
   private final String outputPrefix;
   private final boolean overwrite;
   private final int batchSize;
+  private final boolean emr;
 
 
   public DatasetTrain(SparkSession spark, S3Client s3, String dataset, String sourceBucket, String sourcePrefix, Path tempDir,
-      String processingLevel, Set<String> sourceFileSubset, String outputBucket, String outputPrefix, boolean overwrite, int batchSize) {
+      String processingLevel, Set<String> sourceFileSubset, String outputBucket, String outputPrefix, boolean overwrite, int batchSize, boolean emr) {
     this.batchSize = batchSize;
     this.spark = spark;
     this.s3 = s3;
@@ -53,6 +54,7 @@ public class DatasetTrain {
     this.outputBucket = outputBucket;
     this.outputPrefix = outputPrefix;
     this.overwrite = overwrite;
+    this.emr = emr;
   }
 
 
@@ -61,7 +63,12 @@ public class DatasetTrain {
     Predicate<String> filter = resolveFilter();
     Set<String> keys = listObjects(s3, sourceBucket, keyPrefix, filter);
     return keys.stream()
-        .map(key -> new DatasetYearTrain(this, spark, s3, dataset, sourceBucket, tempDir, processingLevel, outputBucket, outputPrefix, key, overwrite, batchSize))
+        .map(key -> {
+          TransformationErrorHandler transformationErrorHandler = new TransformationErrorHandler(spark, dataset, processingLevel, outputBucket, outputPrefix, key,
+              emr);
+          return new DatasetYearTrain(this, spark, s3, dataset, sourceBucket, tempDir, processingLevel, outputBucket, outputPrefix, key, overwrite, batchSize, transformationErrorHandler,
+              emr);
+        })
         .collect(Collectors.toList());
   }
 
@@ -120,7 +127,7 @@ public class DatasetTrain {
   }
 
   private String resolveParquetFile(String key) {
-    return new StringBuilder("s3a://").append(outputBucket).append("/").append(key).toString();
+    return new StringBuilder(emr ? "s3://" : "s3a://").append(outputBucket).append("/").append(key).toString();
   }
 
   private String resolveKey() {

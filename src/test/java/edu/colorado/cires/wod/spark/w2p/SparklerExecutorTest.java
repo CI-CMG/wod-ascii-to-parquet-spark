@@ -87,7 +87,7 @@ public class SparklerExecutorTest {
           RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
 
       SparklerExecutor executor = new SparklerExecutor(spark, s3, sourceBucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
-          outputBucket, outputPrefix, datasets, processingLevels, 3, false, 1000);
+          outputBucket, outputPrefix, datasets, processingLevels, 3, false, 1000, false);
       executor.execute();
 
       Set<String> keys = S3Actions.listObjects(s3, outputBucket, null, k -> true);
@@ -146,7 +146,7 @@ public class SparklerExecutorTest {
           RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
 
       SparklerExecutor executor = new SparklerExecutor(spark, s3, bucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
-          bucket, outputPrefix, datasets, processingLevels, 3, false, 1000);
+          bucket, outputPrefix, datasets, processingLevels, 3, false, 1000, false);
       executor.execute();
 
       Set<String> keys = S3Actions.listObjects(s3, bucket, null, k -> true);

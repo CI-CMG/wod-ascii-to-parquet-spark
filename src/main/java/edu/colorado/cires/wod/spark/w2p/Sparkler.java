@@ -54,7 +54,7 @@ public class Sparkler implements Serializable, Runnable {
   @Option(names = {"-s", "--subset"}, split = ",", description = "A comma separated list file names to process. If omitted all files defined by the dataset and processing levels will be processed")
   private List<String> sourceFileSubset;
   @Option(names = {"-td", "--temp-directory"}, description = "A working directory where input files can be placed while processing. Defaults to the \"java.io.tmpdir\" directory")
-  private Path tempDir = Paths.get(System.getProperty("java.io.tmpdir"));
+  private String tempDir = Paths.get(System.getProperty("java.io.tmpdir")).toString();
 
   @Option(names = {"-ia", "--input-access"}, description = "An optional access key for the input bucket")
   private String sourceAccessKey;
@@ -68,6 +68,9 @@ public class Sparkler implements Serializable, Runnable {
 
   @Option(names = {"-bs", "--batch-size"}, description = "Number of casts to insert per thread")
   private int batchSize = 10000;
+
+  @Option(names = {"-emr", "--emr"}, description = "Optimize S3 access for EMR")
+  private boolean emr = false;
 
   @Override
   public void run() {
@@ -107,14 +110,14 @@ public class Sparkler implements Serializable, Runnable {
         s3,
         sourceBucket,
         sourcePrefix,
-        tempDir,
+        Paths.get(tempDir),
         sourceFileSubset == null ? null : new TreeSet<>(sourceFileSubset),
         outputBucket,
         outputPrefix,
         new TreeSet<>(datasets),
         new TreeSet<>(processingLevels),
         concurrency,
-        overwrite, batchSize);
+        overwrite, batchSize, emr);
     try {
       executor.execute();
     } catch (IOException e) {
