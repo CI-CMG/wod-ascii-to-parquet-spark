@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -17,6 +18,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -30,74 +32,90 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 public class S3Actions {
 
-  public static InputStream openDownloadStream(S3Client s3, String bucket, String key) throws IOException {
-    return new BufferedInputStream(s3.getObject(c -> c.bucket(bucket).key(key)));
+  public static InputStream openDownloadStream(FileSystemType fs, S3Client s3, String bucket, String key) throws IOException {
+    if (fs == FileSystemType.local) {
+      return new BufferedInputStream(Files.newInputStream(Paths.get(bucket).resolve(key)));
+    } else {
+      return new BufferedInputStream(s3.getObject(c -> c.bucket(bucket).key(key)));
+    }
   }
 
-  public static void download(S3Client s3, String bucket, String key, Path file) throws IOException {
-    try (InputStream in = openDownloadStream(s3, bucket, key);
+  public static void download(FileSystemType fs, S3Client s3, String bucket, String key, Path file) throws IOException {
+    try (InputStream in = openDownloadStream(fs, s3, bucket, key);
         OutputStream out = new BufferedOutputStream(Files.newOutputStream(file));
     ) {
       IOUtils.copy(in, out);
     }
   }
 
-  public static void upload(S3Client s3, String bucket, String key, Path file) throws IOException {
-    PutObjectRequest putOb = PutObjectRequest.builder()
-        .bucket(bucket)
-        .key(key)
-        .build();
-    s3.putObject(putOb, RequestBody.fromFile(file.toFile()));
-  }
-
-  public static void uploadDirectory(S3Client s3, String bucket, String baseKey, Path dir) throws IOException {
-    Path normalizedDir = dir.toAbsolutePath().normalize();
-    try (Stream<Path> paths = Files.walk(normalizedDir)){
-      paths.forEach(path -> {
-        if (Files.isRegularFile(path)) {
-          try {
-            upload(s3, bucket, baseKey + "/" + normalizedDir.relativize(path), path);
-          } catch (IOException e) {
-            throw new RuntimeException("Unable to upload file " + path, e);
-          }
-        }
-      });
+  public static void upload(FileSystemType fs, S3Client s3, String bucket, String key, Path file) throws IOException {
+    if (fs == FileSystemType.local) {
+      Files.copy(file, Paths.get(bucket).resolve(key));
+    } else {
+      PutObjectRequest putOb = PutObjectRequest.builder()
+          .bucket(bucket)
+          .key(key)
+          .build();
+      s3.putObject(putOb, RequestBody.fromFile(file.toFile()));
     }
   }
 
-  public static Set<String> listObjects(S3Client s3, String bucket, String keyPrefix, Predicate<String> filter) {
+
+  public static Set<String> listObjects(FileSystemType fs, S3Client s3, String bucket, String keyPrefix, Predicate<String> filter) {
+    if (fs == FileSystemType.local) {
+      return listFiles(bucket, keyPrefix, filter);
+    } else {
+      Set<String> keys = new TreeSet<>();
+      for (ListObjectsV2Response page : s3.listObjectsV2Paginator(c -> c.bucket(bucket).prefix(keyPrefix))) {
+        keys.addAll(page.contents().stream().map(S3Object::key).filter(filter).collect(Collectors.toList()));
+      }
+      return keys;
+    }
+  }
+
+  private static Set<String> listFiles(String bucket, String keyPrefix, Predicate<String> filter) {
     Set<String> keys = new TreeSet<>();
-    for (ListObjectsV2Response page : s3.listObjectsV2Paginator(c -> c.bucket(bucket).prefix(keyPrefix))) {
-      keys.addAll(page.contents().stream().map(S3Object::key).filter(filter).collect(Collectors.toList()));
+    try (Stream<Path> stream = Files.walk(Paths.get(bucket).resolve(keyPrefix))) {
+      keys.addAll(stream.filter(Files::isRegularFile).map(Path::toString).filter(filter).collect(Collectors.toList()));
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to list years", e);
     }
     return keys;
   }
 
   private static final int MAX_DELETE_COUNT = 1000;
 
-  public static void deletePrefix(S3Client s3, String bucket, String keyPrefix) {
-    System.err.println("Deleting (if exists) s3://" + bucket + "/" + keyPrefix + "*");
-    List<ObjectIdentifier> ois = listObjects(s3, bucket, keyPrefix, x -> true).stream()
-        .map(key -> ObjectIdentifier.builder().key(key).build())
-        .collect(Collectors.toList());
-    if (!ois.isEmpty()) {
-      List<List<ObjectIdentifier>> chunks = IntStream.iterate(0, i -> i < ois.size(), i -> i + MAX_DELETE_COUNT)
-          .mapToObj(i -> ois.subList(i, Math.min(i + MAX_DELETE_COUNT, ois.size())))
+  public static void deletePrefix(FileSystemType fs, S3Client s3, String bucket, String keyPrefix) {
+    if (fs == FileSystemType.local) {
+      FileUtils.deleteQuietly(Paths.get(bucket).resolve(keyPrefix).toFile());
+    } else {
+      System.err.println("Deleting (if exists) s3://" + bucket + "/" + keyPrefix + "*");
+      List<ObjectIdentifier> ois = listObjects(fs, s3, bucket, keyPrefix, x -> true).stream()
+          .map(key -> ObjectIdentifier.builder().key(key).build())
           .collect(Collectors.toList());
-      chunks.stream()
-          .map(list -> list.toArray(new ObjectIdentifier[0]))
-          .map(array -> Delete.builder().objects(array).build())
-          .map(delete -> DeleteObjectsRequest.builder().bucket(bucket).delete(delete).build())
-          .forEach(s3::deleteObjects);
+      if (!ois.isEmpty()) {
+        List<List<ObjectIdentifier>> chunks = IntStream.iterate(0, i -> i < ois.size(), i -> i + MAX_DELETE_COUNT)
+            .mapToObj(i -> ois.subList(i, Math.min(i + MAX_DELETE_COUNT, ois.size())))
+            .collect(Collectors.toList());
+        chunks.stream()
+            .map(list -> list.toArray(new ObjectIdentifier[0]))
+            .map(array -> Delete.builder().objects(array).build())
+            .map(delete -> DeleteObjectsRequest.builder().bucket(bucket).delete(delete).build())
+            .forEach(s3::deleteObjects);
+      }
     }
   }
 
-  public static boolean exists(S3Client s3, String bucket, String key) {
-    try {
-      s3.headObject(c -> c.bucket(bucket).key(key));
-    } catch (NoSuchKeyException e) {
-      return false;
+  public static boolean exists(FileSystemType fs, S3Client s3, String bucket, String key) {
+    if (fs == FileSystemType.local) {
+      return Files.isRegularFile(Paths.get(bucket).resolve(key));
+    } else {
+      try {
+        s3.headObject(c -> c.bucket(bucket).key(key));
+      } catch (NoSuchKeyException e) {
+        return false;
+      }
+      return true;
     }
-    return true;
   }
 }

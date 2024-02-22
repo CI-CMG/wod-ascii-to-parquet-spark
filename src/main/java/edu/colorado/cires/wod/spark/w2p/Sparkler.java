@@ -96,14 +96,18 @@ public class Sparkler implements Serializable, Runnable {
       }
     });
 
-    S3ClientBuilder s3Builder = S3Client.builder();
-    if (sourceAccessKey != null) {
-      s3Builder.credentialsProvider(StaticCredentialsProvider.create(
-          AwsBasicCredentials.create(sourceAccessKey, sourceSecretKey)
-      ));
+    S3Client s3 = null;
+    if (fs != FileSystemType.local) {
+      S3ClientBuilder s3Builder = S3Client.builder();
+      if (sourceAccessKey != null) {
+        s3Builder.credentialsProvider(StaticCredentialsProvider.create(
+            AwsBasicCredentials.create(sourceAccessKey, sourceSecretKey)
+        ));
+      }
+      s3Builder.region(Region.of(sourceBucketRegion));
+      s3 = s3Builder.build();
     }
-    s3Builder.region(Region.of(sourceBucketRegion));
-    S3Client s3 = s3Builder.build();
+
 
     SparklerExecutor executor = new SparklerExecutor(
         spark,

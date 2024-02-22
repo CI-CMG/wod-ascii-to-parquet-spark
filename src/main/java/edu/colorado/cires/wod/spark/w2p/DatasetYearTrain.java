@@ -84,10 +84,10 @@ public class DatasetYearTrain implements Callable<String> {
   @Override
   public String call() throws Exception {
     try {
-      if (overwrite || !listObjects(s3, outputBucket, keyPrefix + "/_temporary/", x -> true).isEmpty()) {
-        deletePrefix(s3, outputBucket, keyPrefix + "/");
+      if (overwrite || !listObjects(fs, s3, outputBucket, keyPrefix + "/_temporary/", x -> true).isEmpty()) {
+        deletePrefix(fs, s3, outputBucket, keyPrefix + "/");
       }
-        if (exists(s3, outputBucket, keyPrefix + "/_SUCCESS")) {
+        if (exists(fs, s3, outputBucket, keyPrefix + "/_SUCCESS")) {
           System.err.println("Skipping existing " + outputParquet);
         } else {
           System.err.println("Free space: " + (tempDir.toFile().getFreeSpace() / 1024 / 1024) + "MiB");
@@ -96,7 +96,7 @@ public class DatasetYearTrain implements Callable<String> {
           System.err.println("Done downloading s3://" + sourceBucket + "/" + key);
           mkdirForFile(file);
           try {
-            download(s3, sourceBucket, key, file);
+            download(fs, s3, sourceBucket, key, file);
             processFile(file, outputParquet);
           } finally {
             rm(file);

@@ -77,7 +77,7 @@ public class SparklerExecutorTest {
       s3.createBucket(c -> c.bucket(sourceBucket));
       s3.createBucket(c -> c.bucket(outputBucket));
 
-      assertTrue(S3Actions.listObjects(s3, outputBucket, null, k -> true).isEmpty());
+      assertTrue(S3Actions.listObjects(FileSystemType.s3, s3, outputBucket, null, k -> true).isEmpty());
 
       s3.putObject(c -> c.bucket(sourceBucket).key("APB/OBS/APBO1997.gz"),
           RequestBody.fromFile(new File("src/test/resources/wod/APB/OBS/APBO1997.gz")));
@@ -87,10 +87,10 @@ public class SparklerExecutorTest {
           RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
 
       SparklerExecutor executor = new SparklerExecutor(spark, s3, sourceBucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
-          outputBucket, outputPrefix, datasets, processingLevels, 3, false, 1000, false);
+          outputBucket, outputPrefix, datasets, processingLevels, 3, false, 1000, FileSystemType.s3);
       executor.execute();
 
-      Set<String> keys = S3Actions.listObjects(s3, outputBucket, null, k -> true);
+      Set<String> keys = S3Actions.listObjects(FileSystemType.s3, s3, outputBucket, null, k -> true);
       System.err.println(keys);
       assertTrue(keys.contains("dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
       assertTrue(keys.contains("dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
@@ -136,7 +136,7 @@ public class SparklerExecutorTest {
 
       s3.createBucket(c -> c.bucket(bucket));
 
-      assertTrue(S3Actions.listObjects(s3, bucket, null, k -> true).isEmpty());
+      assertTrue(S3Actions.listObjects(FileSystemType.s3, s3, bucket, null, k -> true).isEmpty());
 
       s3.putObject(c -> c.bucket(bucket).key("wod-ascii/APB/OBS/APBO1997.gz"),
           RequestBody.fromFile(new File("src/test/resources/wod/APB/OBS/APBO1997.gz")));
@@ -146,10 +146,10 @@ public class SparklerExecutorTest {
           RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
 
       SparklerExecutor executor = new SparklerExecutor(spark, s3, bucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
-          bucket, outputPrefix, datasets, processingLevels, 3, false, 1000, false);
+          bucket, outputPrefix, datasets, processingLevels, 3, false, 1000, FileSystemType.s3);
       executor.execute();
 
-      Set<String> keys = S3Actions.listObjects(s3, bucket, null, k -> true);
+      Set<String> keys = S3Actions.listObjects(FileSystemType.s3, s3, bucket, null, k -> true);
       System.out.println(keys);
       assertTrue(keys.contains("wod-parquet/dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
       assertFalse(keys.contains("wod-parquet/dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));

@@ -61,7 +61,7 @@ public class DatasetTrain {
   public List<DatasetYearTrain> plan() {
     String keyPrefix = resolvePrefix();
     Predicate<String> filter = resolveFilter();
-    Set<String> keys = listObjects(s3, sourceBucket, keyPrefix, filter);
+    Set<String> keys = listObjects(fs, s3, sourceBucket, keyPrefix, filter);
     return keys.stream()
         .map(key -> {
           TransformationErrorHandler transformationErrorHandler = new TransformationErrorHandler(spark, dataset, processingLevel, outputBucket, outputPrefix, key,
@@ -75,7 +75,7 @@ public class DatasetTrain {
   public void accumulate(List<String> datasetYearKeys) {
     String key = resolveKey();
     String parquetFile = resolveParquetFile(key);
-    deletePrefix(s3, outputBucket, key + "/");
+    deletePrefix(fs, s3, outputBucket, key + "/");
     if (!datasetYearKeys.isEmpty()) {
       List<Callable<Dataset<Cast>>> tasks = datasetYearKeys.stream()
           .map(k -> new Callable<Dataset<Cast>>() {
