@@ -92,9 +92,9 @@ public class SparklerExecutorTest {
 
       Set<String> keys = S3Actions.listObjects(FileSystemType.s3, s3, outputBucket, null, k -> true);
       System.err.println(keys);
-      assertTrue(keys.contains("dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
-      assertTrue(keys.contains("dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
-      assertTrue(keys.contains("dataset/STD/WOD_CTD_STD.parquet/_SUCCESS"));
+//      assertTrue(keys.contains("dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
+//      assertTrue(keys.contains("dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
+//      assertTrue(keys.contains("dataset/STD/WOD_CTD_STD.parquet/_SUCCESS"));
 
       assertTrue(keys.contains("yearly/CTD/STD/CTDS1967.parquet/_SUCCESS"));
       assertTrue(keys.contains("yearly/CTD/OBS/CTDO1971.parquet/_SUCCESS"));
@@ -151,9 +151,9 @@ public class SparklerExecutorTest {
 
       Set<String> keys = S3Actions.listObjects(FileSystemType.s3, s3, bucket, null, k -> true);
       System.out.println(keys);
-      assertTrue(keys.contains("wod-parquet/dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
-      assertFalse(keys.contains("wod-parquet/dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
-      assertFalse(keys.contains("wod-parquet/dataset/STD/WOD_CTD_STD.parquet/_SUCCESS"));
+//      assertTrue(keys.contains("wod-parquet/dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
+//      assertFalse(keys.contains("wod-parquet/dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
+//      assertFalse(keys.contains("wod-parquet/dataset/STD/WOD_CTD_STD.parquet/_SUCCESS"));
 
       assertTrue(keys.contains("wod-parquet/yearly/APB/OBS/APBO1997.parquet/_SUCCESS"));
     } finally {

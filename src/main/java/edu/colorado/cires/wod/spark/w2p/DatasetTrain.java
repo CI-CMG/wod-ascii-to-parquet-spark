@@ -72,73 +72,73 @@ public class DatasetTrain {
         .collect(Collectors.toList());
   }
 
-  public void accumulate(List<String> datasetYearKeys) {
-    String key = resolveKey();
-    String parquetFile = resolveParquetFile(key);
-    deletePrefix(fs, s3, outputBucket, key + "/");
-    if (!datasetYearKeys.isEmpty()) {
-      List<Callable<Dataset<Cast>>> tasks = datasetYearKeys.stream()
-          .map(k -> new Callable<Dataset<Cast>>() {
-
-            @Override
-            public Dataset<Cast> call() throws Exception {
-              return spark.read().parquet(k).as(Encoders.bean(Cast.class));
-            }
-          })
-          .collect(Collectors.toList());
-      List<Dataset<Cast>> datasets;
-      ExecutorService executor = Executors.newFixedThreadPool(tasks.size());
-      try {
-        List<Future<Dataset<Cast>>> done = tasks.stream().map(executor::submit).collect(Collectors.toList());
-        datasets = done.stream()
-            .map(f -> {
-              try {
-                return f.get();
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Interrupted while getting dataset to union", e);
-              } catch (ExecutionException e) {
-                throw new RuntimeException("An error occurred getting dataset to union", e);
-              }
-            }).collect(Collectors.toList());
-      } finally {
-        executor.shutdown();
-        try {
-          if (!executor.awaitTermination(800, TimeUnit.MILLISECONDS)) {
-            executor.shutdownNow();
-          }
-        } catch (InterruptedException e) {
-          executor.shutdownNow();
-        }
-      }
-
-      Dataset<Cast> sparkDs = datasets.get(0);
-      for (int i = 1; i < datasetYearKeys.size(); i++) {
-        sparkDs = sparkDs.union(datasets.get(i));
-      }
-      sparkDs
-          .write()
-          .option("maxRecordsPerFile", MAX_RECORDS_PER_FILE)
-          .format("parquet")
-          .mode("overwrite")
-          .partitionBy("geohash", "year")
-          .save(parquetFile);
-    }
-  }
+//  public void accumulate(List<String> datasetYearKeys) {
+//    String key = resolveKey();
+//    String parquetFile = resolveParquetFile(key);
+//    deletePrefix(fs, s3, outputBucket, key + "/");
+//    if (!datasetYearKeys.isEmpty()) {
+//      List<Callable<Dataset<Cast>>> tasks = datasetYearKeys.stream()
+//          .map(k -> new Callable<Dataset<Cast>>() {
+//
+//            @Override
+//            public Dataset<Cast> call() throws Exception {
+//              return spark.read().parquet(k).as(Encoders.bean(Cast.class));
+//            }
+//          })
+//          .collect(Collectors.toList());
+//      List<Dataset<Cast>> datasets;
+//      ExecutorService executor = Executors.newFixedThreadPool(tasks.size());
+//      try {
+//        List<Future<Dataset<Cast>>> done = tasks.stream().map(executor::submit).collect(Collectors.toList());
+//        datasets = done.stream()
+//            .map(f -> {
+//              try {
+//                return f.get();
+//              } catch (InterruptedException e) {
+//                Thread.currentThread().interrupt();
+//                throw new RuntimeException("Interrupted while getting dataset to union", e);
+//              } catch (ExecutionException e) {
+//                throw new RuntimeException("An error occurred getting dataset to union", e);
+//              }
+//            }).collect(Collectors.toList());
+//      } finally {
+//        executor.shutdown();
+//        try {
+//          if (!executor.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+//            executor.shutdownNow();
+//          }
+//        } catch (InterruptedException e) {
+//          executor.shutdownNow();
+//        }
+//      }
+//
+//      Dataset<Cast> sparkDs = datasets.get(0);
+//      for (int i = 1; i < datasetYearKeys.size(); i++) {
+//        sparkDs = sparkDs.union(datasets.get(i));
+//      }
+//      sparkDs
+//          .write()
+//          .option("maxRecordsPerFile", MAX_RECORDS_PER_FILE)
+//          .format("parquet")
+//          .mode("overwrite")
+//          .partitionBy("geohash", "year")
+//          .save(parquetFile);
+//    }
+//  }
 
   private String resolveParquetFile(String key) {
     return new StringBuilder(FileSystemPrefix.resolve(fs)).append(outputBucket).append("/").append(key).toString();
   }
 
-  private String resolveKey() {
-    StringBuilder sb = new StringBuilder();
-    if (outputPrefix != null) {
-      sb.append(outputPrefix.replaceAll("/+$", "")).append("/");
-    }
-    sb.append("dataset/").append(processingLevel).append("/")
-        .append("WOD_").append(dataset).append("_").append(processingLevel).append(".parquet");
-    return sb.toString();
-  }
+//  private String resolveKey() {
+//    StringBuilder sb = new StringBuilder();
+//    if (outputPrefix != null) {
+//      sb.append(outputPrefix.replaceAll("/+$", "")).append("/");
+//    }
+//    sb.append("dataset/").append(processingLevel).append("/")
+//        .append("WOD_").append(dataset).append("_").append(processingLevel).append(".parquet");
+//    return sb.toString();
+//  }
 
   private String resolvePrefix() {
     StringBuilder keyPrefix = new StringBuilder();
