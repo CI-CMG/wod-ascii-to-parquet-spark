@@ -69,8 +69,8 @@ public class Sparkler implements Serializable, Runnable {
   @Option(names = {"-bs", "--batch-size"}, description = "Number of casts to insert per thread")
   private int batchSize = 10000;
 
-  @Option(names = {"-emr", "--emr"}, description = "Optimize S3 access for EMR")
-  private boolean emr = false;
+  @Option(names = {"-fs", "--file-system"}, description = "Optimize S3 access for EMR")
+  private FileSystemType fs = FileSystemType.local;
 
   @Override
   public void run() {
@@ -117,7 +117,7 @@ public class Sparkler implements Serializable, Runnable {
         new TreeSet<>(datasets),
         new TreeSet<>(processingLevels),
         concurrency,
-        overwrite, batchSize, emr);
+        overwrite, batchSize, fs);
     try {
       executor.execute();
     } catch (IOException e) {

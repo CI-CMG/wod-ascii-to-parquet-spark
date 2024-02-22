@@ -37,11 +37,11 @@ public class DatasetTrain {
   private final String outputPrefix;
   private final boolean overwrite;
   private final int batchSize;
-  private final boolean emr;
+  private final FileSystemType fs;
 
 
   public DatasetTrain(SparkSession spark, S3Client s3, String dataset, String sourceBucket, String sourcePrefix, Path tempDir,
-      String processingLevel, Set<String> sourceFileSubset, String outputBucket, String outputPrefix, boolean overwrite, int batchSize, boolean emr) {
+      String processingLevel, Set<String> sourceFileSubset, String outputBucket, String outputPrefix, boolean overwrite, int batchSize, FileSystemType fs) {
     this.batchSize = batchSize;
     this.spark = spark;
     this.s3 = s3;
@@ -54,7 +54,7 @@ public class DatasetTrain {
     this.outputBucket = outputBucket;
     this.outputPrefix = outputPrefix;
     this.overwrite = overwrite;
-    this.emr = emr;
+    this.fs = fs;
   }
 
 
@@ -65,9 +65,9 @@ public class DatasetTrain {
     return keys.stream()
         .map(key -> {
           TransformationErrorHandler transformationErrorHandler = new TransformationErrorHandler(spark, dataset, processingLevel, outputBucket, outputPrefix, key,
-              emr);
+              fs);
           return new DatasetYearTrain(this, spark, s3, dataset, sourceBucket, tempDir, processingLevel, outputBucket, outputPrefix, key, overwrite, batchSize, transformationErrorHandler,
-              emr);
+              fs);
         })
         .collect(Collectors.toList());
   }
@@ -127,7 +127,7 @@ public class DatasetTrain {
   }
 
   private String resolveParquetFile(String key) {
-    return new StringBuilder(emr ? "s3://" : "s3a://").append(outputBucket).append("/").append(key).toString();
+    return new StringBuilder(FileSystemPrefix.resolve(fs)).append(outputBucket).append("/").append(key).toString();
   }
 
   private String resolveKey() {
