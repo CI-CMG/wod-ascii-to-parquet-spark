@@ -40,7 +40,7 @@ public class Sparkler implements Serializable, Runnable {
   private String outputBucketRegion;
   @Option(names = {"-ds", "--data-set"}, required = true, split = ",", defaultValue = "APB,CTD,DRB,GLD,MBT,MRB,OSD,PFL,SUR,UOR,XBT", description = "A comma separated list of data codes - Default: ${DEFAULT-VALUE}")
   private List<String> datasets;
-  @Option(names = {"-p", "--processing-level"}, required = true, split = ",", defaultValue = "OBS,STD", description = "A comma separated list of processing levels - Default: ${DEFAULT-VALUE}")
+  @Option(names = {"-p", "--processing-level"}, required = true, split = ",", defaultValue = "OBS", description = "A comma separated list of processing levels - Default: ${DEFAULT-VALUE}")
   private List<String> processingLevels;
   @Option(names = {"-c", "--concurrency"}, required = true, defaultValue = "1", description = "The number of source files to process at a time")
   private int concurrency;
