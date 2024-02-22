@@ -32,11 +32,11 @@ public class Sparkler implements Serializable, Runnable {
 
   @Option(names = {"-ib", "--input-bucket"}, required = true, description = "The input S3 bucket containing compressed ASCII WOD files")
   private String sourceBucket;
-  @Option(names = {"-ibr", "--input-bucket-region"}, required = true, description = "The input S3 bucket region")
+  @Option(names = {"-ibr", "--input-bucket-region"}, required = false, description = "The input S3 bucket region")
   private String sourceBucketRegion;
   @Option(names = {"-ob", "--output-bucket"}, required = true, description = "The output S3 bucket where to put converted Parquet files")
   private String outputBucket;
-  @Option(names = {"-obr", "--output-bucket-region"}, required = true, description = "The output S3 bucket region")
+  @Option(names = {"-obr", "--output-bucket-region"}, required = false, description = "The output S3 bucket region")
   private String outputBucketRegion;
   @Option(names = {"-ds", "--data-set"}, required = true, split = ",", defaultValue = "APB,CTD,DRB,GLD,MBT,MRB,OSD,PFL,SUR,UOR,XBT", description = "A comma separated list of data codes - Default: ${DEFAULT-VALUE}")
   private List<String> datasets;
@@ -67,7 +67,7 @@ public class Sparkler implements Serializable, Runnable {
   private String outputSecretKey;
 
   @Option(names = {"-bs", "--batch-size"}, description = "Number of casts to insert per thread")
-  private int batchSize = 10000;
+  private int batchSize = 5000;
 
   @Option(names = {"-fs", "--file-system"}, description = "Optimize S3 access for EMR")
   private FileSystemType fs = FileSystemType.local;

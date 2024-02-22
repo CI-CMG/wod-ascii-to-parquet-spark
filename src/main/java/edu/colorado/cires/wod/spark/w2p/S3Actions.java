@@ -75,10 +75,14 @@ public class S3Actions {
 
   private static Set<String> listFiles(String bucket, String keyPrefix, Predicate<String> filter) {
     Set<String> keys = new TreeSet<>();
-    try (Stream<Path> stream = Files.walk(Paths.get(bucket).resolve(keyPrefix))) {
+    Path path = Paths.get(bucket).resolve(keyPrefix);
+    if (!Files.isDirectory(path)) {
+      return keys;
+    }
+    try (Stream<Path> stream = Files.walk(path)) {
       keys.addAll(stream.filter(Files::isRegularFile).map(Path::toString).filter(filter).collect(Collectors.toList()));
     } catch (IOException e) {
-      throw new RuntimeException("Unable to list years", e);
+      throw new RuntimeException("Unable to list files", e);
     }
     return keys;
   }
