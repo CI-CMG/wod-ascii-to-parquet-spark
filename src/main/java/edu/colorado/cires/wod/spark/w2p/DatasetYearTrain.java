@@ -49,12 +49,12 @@ public class DatasetYearTrain implements Callable<String> {
   private final boolean overwrite;
   private final String keyPrefix;
   private final TransformationErrorHandler transformationErrorHandler;
-  private final boolean emr;
+  private final FileSystemType fs;
 
   public DatasetYearTrain(DatasetTrain datasetTrain, SparkSession spark, S3Client s3, String dataset, String sourceBucket, Path tempDir,
       String processingLevel, String outputBucket,
       String outputPrefix, String key, boolean overwrite, int batchSize,
-      TransformationErrorHandler transformationErrorHandler, boolean emr) {
+      TransformationErrorHandler transformationErrorHandler, FileSystemType fs) {
     this.batchSize = batchSize;
     this.datasetTrain = datasetTrain;
     this.spark = spark;
@@ -68,9 +68,9 @@ public class DatasetYearTrain implements Callable<String> {
     this.key = key;
     this.overwrite = overwrite;
     this.transformationErrorHandler = transformationErrorHandler;
-    this.emr = emr;
+    this.fs = fs;
     keyPrefix = resolveKeyPrefix();
-    outputParquet = new StringBuilder(emr ? "s3://" : "s3a://").append(outputBucket).append("/").append(keyPrefix).toString();
+    outputParquet = new StringBuilder(FileSystemPrefix.resolve(fs)).append(outputBucket).append("/").append(keyPrefix).toString();
   }
 
   public DatasetTrain getDatasetTrain() {

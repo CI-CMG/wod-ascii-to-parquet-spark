@@ -33,11 +33,11 @@ public class SparklerExecutor {
   private final int concurrency;
   private final boolean overwrite;
   private final int batchSize;
-  private final boolean emr;
+  private final FileSystemType fs;
 
   public SparklerExecutor(SparkSession spark, S3Client s3, String sourceBucket, String sourcePrefix, Path tempDir, Set<String> sourceFileSubset,
       String outputBucket, String outputPrefix, Set<String> datasets, Set<String> processingLevels, int concurrency, boolean overwrite, int batchSize,
-      boolean emr) {
+      FileSystemType fs) {
     this.spark = spark;
     this.s3 = s3;
     this.sourceBucket = sourceBucket;
@@ -51,7 +51,7 @@ public class SparklerExecutor {
     this.concurrency = concurrency;
     this.overwrite = overwrite;
     this.batchSize = batchSize;
-    this.emr = emr;
+    this.fs = fs;
   }
 
   public void execute() throws IOException {
@@ -111,7 +111,7 @@ public class SparklerExecutor {
 
   private DatasetTrain createTrain(String dataset, String processingLevel) {
     return new DatasetTrain(spark, s3, dataset, sourceBucket, sourcePrefix, tempDir,
-        processingLevel, sourceFileSubset, outputBucket, outputPrefix, overwrite, batchSize, emr);
+        processingLevel, sourceFileSubset, outputBucket, outputPrefix, overwrite, batchSize, fs);
   }
 
   private List<DatasetTrain> getDatasetTrains() {

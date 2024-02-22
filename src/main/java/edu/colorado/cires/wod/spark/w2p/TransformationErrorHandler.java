@@ -17,18 +17,18 @@ public class TransformationErrorHandler {
   private final String outputPrefix;
   private final String key;
   private final String outputParquet;
-  private final boolean emr;
+  private final FileSystemType fs;
 
   public TransformationErrorHandler(SparkSession spark, String dataset, String processingLevel, String outputBucket, String outputPrefix, String key,
-      boolean emr) {
+      FileSystemType fs) {
     this.spark = spark;
     this.dataset = dataset;
     this.processingLevel = processingLevel;
     this.outputBucket = outputBucket;
     this.outputPrefix = outputPrefix;
     this.key = key;
-    this.emr = emr;
-    outputParquet = new StringBuilder(emr ? "s3://" : "s3a://").append(this.outputBucket).append("/").append(resolveErrorPrefix()).toString();
+    this.fs = fs;
+    outputParquet = new StringBuilder(FileSystemPrefix.resolve(fs)).append(this.outputBucket).append("/").append(resolveErrorPrefix()).toString();
   }
 
   public void handleError(Cast cast, Exception e) {
