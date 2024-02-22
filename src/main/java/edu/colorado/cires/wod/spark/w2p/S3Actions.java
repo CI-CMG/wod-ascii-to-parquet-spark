@@ -34,7 +34,13 @@ public class S3Actions {
 
   public static InputStream openDownloadStream(FileSystemType fs, S3Client s3, String bucket, String key) throws IOException {
     if (fs == FileSystemType.local) {
-      return new BufferedInputStream(Files.newInputStream(Paths.get(bucket).resolve(key)));
+      Path path;
+      if (key == null) {
+        path = Paths.get(bucket);
+      } else {
+        path = Paths.get(bucket).resolve(key);
+      }
+      return new BufferedInputStream(Files.newInputStream(path));
     } else {
       return new BufferedInputStream(s3.getObject(c -> c.bucket(bucket).key(key)));
     }
@@ -48,17 +54,6 @@ public class S3Actions {
     }
   }
 
-  public static void upload(FileSystemType fs, S3Client s3, String bucket, String key, Path file) throws IOException {
-    if (fs == FileSystemType.local) {
-      Files.copy(file, Paths.get(bucket).resolve(key));
-    } else {
-      PutObjectRequest putOb = PutObjectRequest.builder()
-          .bucket(bucket)
-          .key(key)
-          .build();
-      s3.putObject(putOb, RequestBody.fromFile(file.toFile()));
-    }
-  }
 
 
   public static Set<String> listObjects(FileSystemType fs, S3Client s3, String bucket, String keyPrefix, Predicate<String> filter) {
@@ -74,13 +69,19 @@ public class S3Actions {
   }
 
   private static Set<String> listFiles(String bucket, String keyPrefix, Predicate<String> filter) {
+    Path bucketPath = Paths.get(bucket).toAbsolutePath().normalize();
     Set<String> keys = new TreeSet<>();
-    Path path = Paths.get(bucket).resolve(keyPrefix);
+    Path path;
+    if (keyPrefix == null) {
+      path = bucketPath;
+    } else {
+      path = bucketPath.resolve(keyPrefix);
+    }
     if (!Files.isDirectory(path)) {
       return keys;
     }
-    try (Stream<Path> stream = Files.walk(path)) {
-      keys.addAll(stream.filter(Files::isRegularFile).map(Path::toString).filter(filter).collect(Collectors.toList()));
+    try (Stream<Path> stream = Files.walk(path.toAbsolutePath().normalize())) {
+      keys.addAll(stream.filter(Files::isRegularFile).map(p -> p.toAbsolutePath().normalize()).map(bucketPath::relativize).map(Path::toString).filter(filter).collect(Collectors.toList()));
     } catch (IOException e) {
       throw new RuntimeException("Unable to list files", e);
     }
@@ -91,7 +92,13 @@ public class S3Actions {
 
   public static void deletePrefix(FileSystemType fs, S3Client s3, String bucket, String keyPrefix) {
     if (fs == FileSystemType.local) {
-      FileUtils.deleteQuietly(Paths.get(bucket).resolve(keyPrefix).toFile());
+      Path path;
+      if (keyPrefix == null) {
+        path = Paths.get(bucket);
+      } else {
+        path = Paths.get(bucket).resolve(keyPrefix);
+      }
+      FileUtils.deleteQuietly(path.toFile());
     } else {
       System.err.println("Deleting (if exists) s3://" + bucket + "/" + keyPrefix + "*");
       List<ObjectIdentifier> ois = listObjects(fs, s3, bucket, keyPrefix, x -> true).stream()
@@ -112,7 +119,13 @@ public class S3Actions {
 
   public static boolean exists(FileSystemType fs, S3Client s3, String bucket, String key) {
     if (fs == FileSystemType.local) {
-      return Files.isRegularFile(Paths.get(bucket).resolve(key));
+      Path path;
+      if (key == null) {
+        path = Paths.get(bucket);
+      } else {
+        path = Paths.get(bucket).resolve(key);
+      }
+      return Files.isRegularFile(path);
     } else {
       try {
         s3.headObject(c -> c.bucket(bucket).key(key));

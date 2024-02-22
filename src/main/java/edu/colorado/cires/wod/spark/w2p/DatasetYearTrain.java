@@ -20,6 +20,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -87,21 +88,26 @@ public class DatasetYearTrain implements Callable<String> {
       if (overwrite || !listObjects(fs, s3, outputBucket, keyPrefix + "/_temporary/", x -> true).isEmpty()) {
         deletePrefix(fs, s3, outputBucket, keyPrefix + "/");
       }
-        if (exists(fs, s3, outputBucket, keyPrefix + "/_SUCCESS")) {
-          System.err.println("Skipping existing " + outputParquet);
+      if (exists(fs, s3, outputBucket, keyPrefix + "/_SUCCESS")) {
+        System.err.println("Skipping existing " + outputParquet);
+      } else {
+        if (fs == FileSystemType.local) {
+          Path file = Paths.get(sourceBucket).resolve(key);
+          processFile(file, outputParquet);
         } else {
           System.err.println("Free space: " + (tempDir.toFile().getFreeSpace() / 1024 / 1024) + "MiB");
           System.err.println("Downloading s3://" + sourceBucket + "/" + key);
           Path file = tempDir.resolve(key);
-          System.err.println("Done downloading s3://" + sourceBucket + "/" + key);
           mkdirForFile(file);
           try {
             download(fs, s3, sourceBucket, key, file);
+            System.err.println("Done downloading s3://" + sourceBucket + "/" + key);
             processFile(file, outputParquet);
           } finally {
             rm(file);
           }
         }
+      }
     } catch (IOException e) {
       throw new IllegalStateException("Unable to process file " + key, e);
     }
@@ -116,7 +122,8 @@ public class DatasetYearTrain implements Callable<String> {
 
   private void processFile(InputStream inputStream, String outputParquet) throws IOException {
 
-    try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new GZIPInputStream(new BufferedInputStream(inputStream)), StandardCharsets.UTF_8))) {
+    try (BufferedReader bufferedReader = new BufferedReader(
+        new InputStreamReader(new GZIPInputStream(new BufferedInputStream(inputStream)), StandardCharsets.UTF_8))) {
 
       CastFileReader reader = new CastFileReader(new BufferedCharReader(bufferedReader), dataset);
 
