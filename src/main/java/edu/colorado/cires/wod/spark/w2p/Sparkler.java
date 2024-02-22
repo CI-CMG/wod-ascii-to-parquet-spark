@@ -74,8 +74,10 @@ public class Sparkler implements Serializable, Runnable {
 
   @Override
   public void run() {
-    SparkSession.Builder sparkBuilder = SparkSession.builder()
-        .config("spark.hadoop.fs.s3a.endpoint.region", outputBucketRegion);
+    SparkSession.Builder sparkBuilder = SparkSession.builder();
+    if (outputBucketRegion != null) {
+      sparkBuilder.config("spark.hadoop.fs.s3a.endpoint.region", outputBucketRegion);
+    }
     if (outputAccessKey != null) {
       sparkBuilder.config("spark.hadoop.fs.s3a.access.key", outputAccessKey);
     }
