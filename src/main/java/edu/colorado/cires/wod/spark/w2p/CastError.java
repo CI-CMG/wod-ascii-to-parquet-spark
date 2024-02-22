@@ -123,6 +123,7 @@ public class CastError implements Serializable {
     }
 
     public Builder withError(String error) {
+      this.error = error;
       return this;
     }
 
