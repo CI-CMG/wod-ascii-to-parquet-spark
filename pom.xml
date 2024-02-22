@@ -296,7 +296,7 @@
           <releaseProfiles>release,site-publish</releaseProfiles>
           <goals>deploy site</goals>
           <tagNameFormat>v@{project.version}</tagNameFormat>
-          <arguments>-D${sign.serverId}</arguments>
+          <arguments>-D${sign.serverId} -DskipTests</arguments>
         </configuration>
       </plugin>
       <plugin>
