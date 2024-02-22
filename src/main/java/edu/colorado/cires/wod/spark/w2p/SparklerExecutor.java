@@ -58,39 +58,40 @@ public class SparklerExecutor {
     FileActions.mkdir(tempDir);
     List<DatasetTrain> datasetTrains = getDatasetTrains();
     List<DatasetYearTrain> tasks = datasetTrains.stream().flatMap(d -> d.plan().stream()).collect(Collectors.toList());
-    Map<DatasetTrain, Set<String>> accumulator = new HashMap<>();
-    Map<String, DatasetTrain> keyMap = new HashMap<>();
-    for (DatasetYearTrain task : tasks) {
-      DatasetTrain datasetTrain = task.getDatasetTrain();
-      Set<String> keySet = accumulator.get(datasetTrain);
-      if (keySet == null) {
-        keySet = new HashSet<>();
-        accumulator.put(datasetTrain, keySet);
-      }
-      String key = task.getOutputParquet();
-      keySet.add(key);
-      keyMap.put(key, datasetTrain);
-    }
+//    Map<DatasetTrain, Set<String>> accumulator = new HashMap<>();
+//    Map<String, DatasetTrain> keyMap = new HashMap<>();
+//    for (DatasetYearTrain task : tasks) {
+//      DatasetTrain datasetTrain = task.getDatasetTrain();
+//      Set<String> keySet = accumulator.get(datasetTrain);
+//      if (keySet == null) {
+//        keySet = new HashSet<>();
+//        accumulator.put(datasetTrain, keySet);
+//      }
+//      String key = task.getOutputParquet();
+//      keySet.add(key);
+//      keyMap.put(key, datasetTrain);
+//    }
 
-    Map<DatasetTrain, Set<String>> todoMap = new HashMap<>();
+//    Map<DatasetTrain, Set<String>> todoMap = new HashMap<>();
 
     ExecutorService executor = Executors.newFixedThreadPool(concurrency);
     try {
       List<Future<String>> results = tasks.stream().map(executor::submit).collect(Collectors.toList());
       for (Future<String> result : results) {
-        String key = result.get();
-        DatasetTrain datasetTrain = keyMap.get(key);
-        Set<String> remaining = accumulator.get(datasetTrain);
-        remaining.remove(key);
-        Set<String> todo = todoMap.get(datasetTrain);
-        if (todo == null) {
-          todo = new TreeSet<>();
-          todoMap.put(datasetTrain, todo);
-        }
-        todo.add(key);
-        if (remaining.isEmpty()) {
-          datasetTrain.accumulate(new ArrayList<>(todo));
-        }
+        result.get();
+//        String key = result.get();
+//        DatasetTrain datasetTrain = keyMap.get(key);
+//        Set<String> remaining = accumulator.get(datasetTrain);
+//        remaining.remove(key);
+//        Set<String> todo = todoMap.get(datasetTrain);
+//        if (todo == null) {
+//          todo = new TreeSet<>();
+//          todoMap.put(datasetTrain, todo);
+//        }
+//        todo.add(key);
+//        if (remaining.isEmpty()) {
+//          datasetTrain.accumulate(new ArrayList<>(todo));
+//        }
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
