@@ -67,7 +67,6 @@ public class SparklerExecutorLocalTest {
           outputPrefix,
           datasets,
           processingLevels,
-          3,
           false,
           1000,
           FileSystemType.local

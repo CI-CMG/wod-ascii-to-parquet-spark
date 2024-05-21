@@ -122,7 +122,6 @@ public class Sparkler implements Serializable, Runnable {
         outputPrefix,
         new TreeSet<>(datasets),
         new TreeSet<>(processingLevels),
-        concurrency,
         overwrite, batchSize, fs);
     try {
       executor.execute();

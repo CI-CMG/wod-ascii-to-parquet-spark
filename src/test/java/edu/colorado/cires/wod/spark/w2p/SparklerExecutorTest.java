@@ -1,6 +1,5 @@
 package edu.colorado.cires.wod.spark.w2p;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 
@@ -87,7 +86,7 @@ public class SparklerExecutorTest {
           RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
 
       SparklerExecutor executor = new SparklerExecutor(spark, s3, sourceBucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
-          outputBucket, outputPrefix, datasets, processingLevels, 3, false, 1000, FileSystemType.s3);
+          outputBucket, outputPrefix, datasets, processingLevels, false, 1000, FileSystemType.s3);
       executor.execute();
 
       Set<String> keys = S3Actions.listObjects(FileSystemType.s3, s3, outputBucket, null, k -> true);
@@ -146,7 +145,7 @@ public class SparklerExecutorTest {
           RequestBody.fromFile(new File("src/test/resources/wod/CTD/STD/CTDS1967.gz")));
 
       SparklerExecutor executor = new SparklerExecutor(spark, s3, bucket, sourcePrefix, TEMP_DIR, sourceFileSubset,
-          bucket, outputPrefix, datasets, processingLevels, 3, false, 1000, FileSystemType.s3);
+          bucket, outputPrefix, datasets, processingLevels, false, 1000, FileSystemType.s3);
       executor.execute();
 
       Set<String> keys = S3Actions.listObjects(FileSystemType.s3, s3, bucket, null, k -> true);

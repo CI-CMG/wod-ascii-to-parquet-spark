@@ -7,6 +7,7 @@ import static edu.colorado.cires.wod.spark.w2p.S3Actions.deletePrefix;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.download;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.exists;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.listObjects;
+import static org.apache.spark.sql.functions.col;
 
 import edu.colorado.cires.wod.ascii.reader.BufferedCharReader;
 import edu.colorado.cires.wod.ascii.reader.CastFileReader;
@@ -27,16 +28,20 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.zip.GZIPInputStream;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import software.amazon.awssdk.services.s3.S3Client;
 
-public class DatasetYearTrain implements Callable<String> {
+public class DatasetYearTrain implements Runnable {
+
+  private static final String WCS84_PROJJSON = "{\"$schema\": \"https://proj.org/schemas/v0.7/projjson.schema.json\",\"type\": \"GeographicCRS\",\"name\": \"WGS 84\",\"datum_ensemble\": {\"name\": \"World Geodetic System 1984 ensemble\",\"members\": [{\"name\": \"World Geodetic System 1984 (Transit)\",\"id\": {\"authority\": \"EPSG\",\"code\": 1166}},{\"name\": \"World Geodetic System 1984 (G730)\",\"id\": {\"authority\": \"EPSG\",\"code\": 1152}},{\"name\": \"World Geodetic System 1984 (G873)\",\"id\": {\"authority\": \"EPSG\",\"code\": 1153}},{\"name\": \"World Geodetic System 1984 (G1150)\",\"id\": {\"authority\": \"EPSG\",\"code\": 1154}},{\"name\": \"World Geodetic System 1984 (G1674)\",\"id\": {\"authority\": \"EPSG\",\"code\": 1155}},{\"name\": \"World Geodetic System 1984 (G1762)\",\"id\": {\"authority\": \"EPSG\",\"code\": 1156}},{\"name\": \"World Geodetic System 1984 (G2139)\",\"id\": {\"authority\": \"EPSG\",\"code\": 1309}}],\"ellipsoid\": {\"name\": \"WGS 84\",\"semi_major_axis\": 6378137,\"inverse_flattening\": 298.257223563},\"accuracy\": \"2.0\",\"id\": {\"authority\": \"EPSG\",\"code\": 6326}},\"coordinate_system\": {\"subtype\": \"ellipsoidal\",\"axis\": [{\"name\": \"Geodetic latitude\",\"abbreviation\": \"Lat\",\"direction\": \"north\",\"unit\": \"degree\"},{\"name\": \"Geodetic longitude\",\"abbreviation\": \"Lon\",\"direction\": \"east\",\"unit\": \"degree\"}]},\"scope\": \"Horizontal component of 3D system.\",\"area\": \"World.\",\"bbox\": {\"south_latitude\": -90,\"west_longitude\": -180,\"north_latitude\": 90,\"east_longitude\": 180},\"id\": {\"authority\": \"EPSG\",\"code\": 4326}}";
+  private static final String GEOPARQUET_VERSION = "1.0.0";
 
   private final int batchSize;
-  private static final int GEOHASH_LENGTH = 3;
 
-  private final DatasetTrain datasetTrain;
   private final SparkSession spark;
   private final S3Client s3;
   private final String dataset;
@@ -46,18 +51,18 @@ public class DatasetYearTrain implements Callable<String> {
   private final String outputBucket;
   private final String outputPrefix;
   private final String key;
-  private final String outputParquet;
+  private final String preProcessingOutputParquet;
+  private final String finalOutputParquet;
   private final boolean overwrite;
   private final String keyPrefix;
   private final TransformationErrorHandler transformationErrorHandler;
   private final FileSystemType fs;
 
-  public DatasetYearTrain(DatasetTrain datasetTrain, SparkSession spark, S3Client s3, String dataset, String sourceBucket, Path tempDir,
+  public DatasetYearTrain(SparkSession spark, S3Client s3, String dataset, String sourceBucket, Path tempDir,
       String processingLevel, String outputBucket,
       String outputPrefix, String key, boolean overwrite, int batchSize,
       TransformationErrorHandler transformationErrorHandler, FileSystemType fs) {
     this.batchSize = batchSize;
-    this.datasetTrain = datasetTrain;
     this.spark = spark;
     this.s3 = s3;
     this.dataset = dataset;
@@ -71,29 +76,22 @@ public class DatasetYearTrain implements Callable<String> {
     this.transformationErrorHandler = transformationErrorHandler;
     this.fs = fs;
     keyPrefix = resolveKeyPrefix();
-    outputParquet = new StringBuilder(FileSystemPrefix.resolve(fs)).append(outputBucket).append("/").append(keyPrefix).toString();
-  }
-
-  public DatasetTrain getDatasetTrain() {
-    return datasetTrain;
-  }
-
-  public String getOutputParquet() {
-    return outputParquet;
+    finalOutputParquet = new StringBuilder(FileSystemPrefix.resolve(fs)).append(outputBucket).append("/").append(keyPrefix).toString();
+    preProcessingOutputParquet = finalOutputParquet + "_temp";
   }
 
   @Override
-  public String call() throws Exception {
+  public void run() {
     try {
       if (overwrite || !listObjects(fs, s3, outputBucket, keyPrefix + "/_temporary/", x -> true).isEmpty()) {
         deletePrefix(fs, s3, outputBucket, keyPrefix + "/");
       }
       if (exists(fs, s3, outputBucket, keyPrefix + "/_SUCCESS")) {
-        System.err.println("Skipping existing " + outputParquet);
+        System.err.println("Skipping existing " + preProcessingOutputParquet);
       } else {
         if (fs == FileSystemType.local) {
           Path file = Paths.get(sourceBucket).resolve(key);
-          processFile(file, outputParquet);
+          processFile(file);
         } else {
           System.err.println("Free space: " + (tempDir.toFile().getFreeSpace() / 1024 / 1024) + "MiB");
           System.err.println("Downloading s3://" + sourceBucket + "/" + key);
@@ -102,7 +100,7 @@ public class DatasetYearTrain implements Callable<String> {
           try {
             download(fs, s3, sourceBucket, key, file);
             System.err.println("Done downloading s3://" + sourceBucket + "/" + key);
-            processFile(file, outputParquet);
+            processFile(file);
           } finally {
             rm(file);
           }
@@ -111,16 +109,34 @@ public class DatasetYearTrain implements Callable<String> {
     } catch (IOException e) {
       throw new IllegalStateException("Unable to process file " + key, e);
     }
-    return outputParquet;
   }
 
-  private void processFile(Path file, String outputParquet) throws IOException {
+  private void processFile(Path file) throws IOException {
     try (InputStream inputStream = Files.newInputStream(file)) {
-      processFile(inputStream, outputParquet);
+      processFile(inputStream);
     }
+    sortByGeohashToImprovePerformance();
   }
 
-  private void processFile(InputStream inputStream, String outputParquet) throws IOException {
+  private void deleteIfExists(String parquetStore) {
+    throw new UnsupportedOperationException();
+  }
+
+  private void sortByGeohashToImprovePerformance() {
+    System.err.println("Sorting and writing final output: " + finalOutputParquet);
+    Dataset<Cast> dataset = spark.read().format("geoparquet").load(preProcessingOutputParquet).as(Encoders.bean(Cast.class));
+    dataset.write()
+        .format("geoparquet")
+//        .option("maxRecordsPerFile", MAX_RECORDS_PER_FILE)
+        .option("geoparquet.version", GEOPARQUET_VERSION)
+        .option("geoparquet.crs", WCS84_PROJJSON)
+        .sortBy("geohash")
+        .mode(SaveMode.Overwrite)
+        .save(finalOutputParquet);
+//    deleteIfExists(preProcessingOutputParquet);
+  }
+
+  private void processFile(InputStream inputStream) throws IOException {
 
     try (BufferedReader bufferedReader = new BufferedReader(
         new InputStreamReader(new GZIPInputStream(new BufferedInputStream(inputStream)), StandardCharsets.UTF_8))) {
@@ -143,7 +159,7 @@ public class DatasetYearTrain implements Callable<String> {
             batch.add(castWrapper.getCast());
           }
           if (batch.size() == batchSize) {
-            writeBatch(batch, outputParquet, first);
+            writeBatch(batch, first);
             first = false;
             batch = new ArrayList<>(batchSize);
           }
@@ -155,7 +171,7 @@ public class DatasetYearTrain implements Callable<String> {
           }
         }
         if (!batch.isEmpty()) {
-          writeBatch(batch, outputParquet, first);
+          writeBatch(batch, first);
         }
       });
       writer.start();
@@ -164,7 +180,7 @@ public class DatasetYearTrain implements Callable<String> {
         while (reader.hasNext()) {
           edu.colorado.cires.wod.ascii.model.Cast asciiCast = reader.next();
           try {
-            Cast cast = WodAsciiParquetTransformer.parquetFromAscii(asciiCast, GEOHASH_LENGTH);
+            Cast cast = WodAsciiParquetTransformer.parquetFromAscii(asciiCast);
             transferQueue.put(new CastWrapper(cast));
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -190,16 +206,17 @@ public class DatasetYearTrain implements Callable<String> {
     }
   }
 
-  private void writeBatch(List<Cast> batch, String outputParquet, boolean isNew) {
+  private void writeBatch(List<Cast> batch, boolean isNew) {
     String mode = isNew ? "overwrite" : "append";
     System.err.println("Submitted batch write: " + batch.size() + " " + mode);
     spark.createDataset(batch, Encoders.bean(Cast.class))
         .write()
-        .option("maxRecordsPerFile", MAX_RECORDS_PER_FILE)
-        .format("parquet")
+        .format("geoparquet")
+//        .option("maxRecordsPerFile", MAX_RECORDS_PER_FILE)
+        .option("geoparquet.version", GEOPARQUET_VERSION)
+        .option("geoparquet.crs", WCS84_PROJJSON)
         .mode(mode)
-        .partitionBy("geohash", "year")
-        .save(outputParquet);
+        .save(preProcessingOutputParquet);
   }
 
   private String resolveKeyPrefix() {

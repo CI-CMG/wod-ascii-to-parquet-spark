@@ -37,7 +37,7 @@ public class TransformationErrorHandler {
     System.err.println("Conversion error handled: " + cast.getDataset() + ":" + cast.getCastNumber() + "\n" + error);
     spark.createDataset(Collections.singletonList(castError), Encoders.bean(CastError.class))
         .write()
-        .option("maxRecordsPerFile", MAX_RECORDS_PER_FILE)
+//        .option("maxRecordsPerFile", MAX_RECORDS_PER_FILE)
         .format("parquet")
         .mode("append")
         .save(outputParquet);
