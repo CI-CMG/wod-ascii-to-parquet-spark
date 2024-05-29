@@ -1,13 +1,11 @@
 package edu.colorado.cires.wod.spark.w2p;
 
-import static edu.colorado.cires.wod.spark.w2p.DatasetTrain.MAX_RECORDS_PER_FILE;
 import static edu.colorado.cires.wod.spark.w2p.FileActions.mkdirForFile;
 import static edu.colorado.cires.wod.spark.w2p.FileActions.rm;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.deletePrefix;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.download;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.exists;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.listObjects;
-import static org.apache.spark.sql.functions.col;
 
 import edu.colorado.cires.wod.ascii.reader.BufferedCharReader;
 import edu.colorado.cires.wod.ascii.reader.CastFileReader;
@@ -25,12 +23,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.zip.GZIPInputStream;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -115,25 +111,23 @@ public class DatasetYearTrain implements Runnable {
     try (InputStream inputStream = Files.newInputStream(file)) {
       processFile(inputStream);
     }
-    sortByGeohashToImprovePerformance();
+    finalizeAndSort();
   }
 
-  private void deleteIfExists(String parquetStore) {
-    throw new UnsupportedOperationException();
+  private void deletePreprocessing() {
+    deletePrefix(fs, s3, outputBucket, keyPrefix + "_temp/");
   }
 
-  private void sortByGeohashToImprovePerformance() {
+  private void finalizeAndSort() {
     System.err.println("Sorting and writing final output: " + finalOutputParquet);
-    Dataset<Cast> dataset = spark.read().format("geoparquet").load(preProcessingOutputParquet).as(Encoders.bean(Cast.class));
+    Dataset<Cast> dataset = spark.read().format("geoparquet").load(preProcessingOutputParquet).as(Encoders.bean(Cast.class)).sort("geohash");
     dataset.write()
         .format("geoparquet")
-//        .option("maxRecordsPerFile", MAX_RECORDS_PER_FILE)
         .option("geoparquet.version", GEOPARQUET_VERSION)
         .option("geoparquet.crs", WCS84_PROJJSON)
-        .sortBy("geohash")
         .mode(SaveMode.Overwrite)
         .save(finalOutputParquet);
-//    deleteIfExists(preProcessingOutputParquet);
+    deletePreprocessing();
   }
 
   private void processFile(InputStream inputStream) throws IOException {

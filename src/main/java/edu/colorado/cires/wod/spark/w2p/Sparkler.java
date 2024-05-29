@@ -2,10 +2,10 @@ package edu.colorado.cires.wod.spark.w2p;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.TreeSet;
+import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.scheduler.JobFailed;
 import org.apache.spark.scheduler.JobResult;
 import org.apache.spark.scheduler.SparkListener;
@@ -66,15 +66,15 @@ public class Sparkler implements Serializable, Runnable {
   @Option(names = {"-os", "--output-secret"}, description = "An optional secret key for the output bucket")
   private String outputSecretKey;
 
-  @Option(names = {"-bs", "--batch-size"}, description = "Number of casts to insert per thread")
-  private int batchSize = 5000;
+  @Option(names = {"-bs", "--batch-size"}, description = "Number of casts to insert per batch")
+  private int batchSize = 10000;
 
   @Option(names = {"-fs", "--file-system"}, description = "Optimize S3 access for EMR")
   private FileSystemType fs = FileSystemType.local;
 
   @Override
   public void run() {
-    SparkSession.Builder sparkBuilder = SparkSession.builder();
+    SparkSession.Builder sparkBuilder = SedonaContext.builder();
     if (outputBucketRegion != null) {
       sparkBuilder.config("spark.hadoop.fs.s3a.endpoint.region", outputBucketRegion);
     }
@@ -84,7 +84,7 @@ public class Sparkler implements Serializable, Runnable {
     if (outputSecretKey != null) {
       sparkBuilder.config("spark.hadoop.fs.s3a.secret.key", outputSecretKey);
     }
-    SparkSession spark = sparkBuilder.getOrCreate();
+    SparkSession spark = SedonaContext.create(sparkBuilder.getOrCreate());
 
     spark.sparkContext().addSparkListener(new SparkListener() {
 

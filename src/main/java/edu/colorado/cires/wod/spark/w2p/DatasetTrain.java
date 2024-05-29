@@ -13,8 +13,6 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 public class DatasetTrain {
 
-  public static final int MAX_RECORDS_PER_FILE = 20000;
-
   private final SparkSession spark;
   private final S3Client s3;
   private final String dataset;

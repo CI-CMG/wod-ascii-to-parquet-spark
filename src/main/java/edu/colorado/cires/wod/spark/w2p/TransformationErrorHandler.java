@@ -1,7 +1,5 @@
 package edu.colorado.cires.wod.spark.w2p;
 
-import static edu.colorado.cires.wod.spark.w2p.DatasetTrain.MAX_RECORDS_PER_FILE;
-
 import edu.colorado.cires.wod.ascii.model.Cast;
 import java.util.Collections;
 import org.apache.commons.lang3.exception.ExceptionUtils;

@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
+import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.SparkSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +56,7 @@ public class SparklerExecutorTest {
     Set<String> datasets = new HashSet<>(Arrays.asList("APB", "CTD"));
     Set<String> processingLevels = new HashSet<>(Arrays.asList("OBS", "STD"));
 
-    SparkSession spark = SparkSession
+    SparkSession spark = SedonaContext.create(SedonaContext
         .builder()
         .appName("test")
         .master("local[*]")
@@ -63,7 +64,7 @@ public class SparklerExecutorTest {
         .config("spark.hadoop.fs.s3a.bucket.wod-parquet.secret.key", localstack.getSecretKey())
         .config("spark.hadoop.fs.s3a.endpoint", localstack.getEndpoint().toString())
         .config("spark.hadoop.fs.s3a.endpoint.region", localstack.getRegion())
-        .getOrCreate();
+        .getOrCreate());
     try {
       S3Client s3 = S3Client.builder()
           .credentialsProvider(StaticCredentialsProvider.create(
