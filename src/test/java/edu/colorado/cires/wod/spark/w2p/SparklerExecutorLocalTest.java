@@ -10,13 +10,12 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
+import org.apache.sedona.spark.SedonaContext;
 import org.apache.spark.sql.SparkSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-@Testcontainers
 public class SparklerExecutorLocalTest {
 
   private static final Path TEMP_DIR = Paths.get("target/temp-dir").toAbsolutePath();
@@ -54,7 +53,7 @@ public class SparklerExecutorLocalTest {
     Files.createDirectories(BUCKET_DIR.resolve(sourcePrefix).resolve("CTD/STD"));
     Files.copy(Paths.get("src/test/resources/wod/CTD/STD/CTDS1967.gz"), BUCKET_DIR.resolve(sourcePrefix).resolve("CTD/STD/CTDS1967.gz"));
 
-    try (SparkSession spark = SparkSession.builder().appName("test").master("local[*]").getOrCreate()) {
+    try (SparkSession spark = SedonaContext.create(SedonaContext.builder().appName("test").master("local[*]").getOrCreate())) {
 
       SparklerExecutor executor = new SparklerExecutor(
           spark,
@@ -76,14 +75,15 @@ public class SparklerExecutorLocalTest {
     }
 
     Set<String> keys = S3Actions.listObjects(FileSystemType.local, null, outputBucket, null, k -> true);
-    System.err.println(keys);
-//    assertTrue(keys.contains("parquet/dataset/OBS/WOD_APB_OBS.parquet/_SUCCESS"));
-//    assertTrue(keys.contains("parquet/dataset/OBS/WOD_CTD_OBS.parquet/_SUCCESS"));
-//    assertTrue(keys.contains("parquet/dataset/STD/WOD_CTD_STD.parquet/_SUCCESS"));
-
     assertTrue(keys.contains("parquet/yearly/CTD/STD/CTDS1967.parquet/_SUCCESS"));
     assertTrue(keys.contains("parquet/yearly/CTD/OBS/CTDO1971.parquet/_SUCCESS"));
     assertTrue(keys.contains("parquet/yearly/APB/OBS/APBO1997.parquet/_SUCCESS"));
+
+    try (SparkSession spark = SedonaContext.create(SedonaContext.builder().appName("test").master("local[*]").getOrCreate())) {
+      spark.read().load(BUCKET_DIR.resolve("parquet/yearly/CTD/STD/CTDS1967.parquet").toString()).show();
+      spark.read().load(BUCKET_DIR.resolve("parquet/yearly/CTD/OBS/CTDO1971.parquet").toString()).show();
+      spark.read().load(BUCKET_DIR.resolve("parquet/yearly/APB/OBS/APBO1997.parquet").toString()).show();
+    }
 
   }
 

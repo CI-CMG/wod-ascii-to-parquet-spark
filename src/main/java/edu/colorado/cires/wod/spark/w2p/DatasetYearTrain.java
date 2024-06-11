@@ -6,6 +6,8 @@ import static edu.colorado.cires.wod.spark.w2p.S3Actions.deletePrefix;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.download;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.exists;
 import static edu.colorado.cires.wod.spark.w2p.S3Actions.listObjects;
+import static org.apache.spark.sql.functions.asc;
+import static org.apache.spark.sql.functions.col;
 
 import edu.colorado.cires.wod.ascii.reader.BufferedCharReader;
 import edu.colorado.cires.wod.ascii.reader.CastFileReader;
@@ -27,6 +29,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.zip.GZIPInputStream;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.SparkSession;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -120,12 +123,13 @@ public class DatasetYearTrain implements Runnable {
 
   private void finalizeAndSort() {
     System.err.println("Sorting and writing final output: " + finalOutputParquet);
-    Dataset<Cast> dataset = spark.read().format("geoparquet").load(preProcessingOutputParquet).as(Encoders.bean(Cast.class)).sort("geohash");
-    dataset.write()
+    Dataset<Row> dataset = spark.read().format("geoparquet").load(preProcessingOutputParquet).orderBy(asc("geohash"));
+    dataset.repartition(col("geohash3")).sortWithinPartitions("geohash").write()
         .format("geoparquet")
         .option("geoparquet.version", GEOPARQUET_VERSION)
         .option("geoparquet.crs", WCS84_PROJJSON)
         .mode(SaveMode.Overwrite)
+        .partitionBy("geohash3")
         .save(finalOutputParquet);
     deletePreprocessing();
   }
