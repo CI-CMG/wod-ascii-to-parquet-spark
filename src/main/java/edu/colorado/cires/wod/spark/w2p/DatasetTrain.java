@@ -25,11 +25,12 @@ public class DatasetTrain {
   private final String outputPrefix;
   private final boolean overwrite;
   private final int batchSize;
-  private final FileSystemType fs;
+  private final FileSystemType ifs;
+  private final FileSystemType ofs;
 
 
   public DatasetTrain(SparkSession spark, S3Client s3, String dataset, String sourceBucket, String sourcePrefix, Path tempDir,
-      String processingLevel, Set<String> sourceFileSubset, String outputBucket, String outputPrefix, boolean overwrite, int batchSize, FileSystemType fs) {
+      String processingLevel, Set<String> sourceFileSubset, String outputBucket, String outputPrefix, boolean overwrite, int batchSize, FileSystemType ifs, FileSystemType ofs) {
     this.batchSize = batchSize;
     this.spark = spark;
     this.s3 = s3;
@@ -42,20 +43,20 @@ public class DatasetTrain {
     this.outputBucket = outputBucket;
     this.outputPrefix = outputPrefix;
     this.overwrite = overwrite;
-    this.fs = fs;
+    this.ifs = ifs;
+    this.ofs = ofs;
   }
 
 
   public List<DatasetYearTrain> plan() {
     String keyPrefix = resolvePrefix();
     Predicate<String> filter = resolveFilter();
-    Set<String> keys = listObjects(fs, s3, sourceBucket, keyPrefix, filter);
+    Set<String> keys = listObjects(ifs, s3, sourceBucket, keyPrefix, filter);
     return keys.stream()
         .map(key -> {
-          TransformationErrorHandler transformationErrorHandler = new TransformationErrorHandler(spark, dataset, processingLevel, outputBucket, outputPrefix, key,
-              fs);
+          TransformationErrorHandler transformationErrorHandler = new TransformationErrorHandler(spark, dataset, processingLevel, outputBucket, outputPrefix, key, ofs);
           return new DatasetYearTrain(spark, s3, dataset, sourceBucket, tempDir, processingLevel, outputBucket, outputPrefix, key, overwrite, batchSize, transformationErrorHandler,
-              fs);
+              ifs, ofs);
         })
         .collect(Collectors.toList());
   }

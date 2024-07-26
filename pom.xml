@@ -47,7 +47,7 @@
     <javadoc.version>3.3.1</javadoc.version>
     <jacoco.version>0.8.7</jacoco.version>
     <hadoop.version>3.3.4</hadoop.version>
-    <spark.version>3.4.1</spark.version>
+    <spark.version>3.4.3</spark.version>
     <scala.version>2.13</scala.version>
   </properties>
 
@@ -105,7 +105,6 @@
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-aws</artifactId>
       <version>${hadoop.version}</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
@@ -286,7 +285,7 @@
         <artifactId>maven-shade-plugin</artifactId>
         <version>3.5.0</version>
         <configuration>
-          <minimizeJar>true</minimizeJar>
+          <minimizeJar>false</minimizeJar>
         </configuration>
         <executions>
           <execution>

@@ -15,18 +15,16 @@ public class TransformationErrorHandler {
   private final String outputPrefix;
   private final String key;
   private final String outputParquet;
-  private final FileSystemType fs;
 
   public TransformationErrorHandler(SparkSession spark, String dataset, String processingLevel, String outputBucket, String outputPrefix, String key,
-      FileSystemType fs) {
+      FileSystemType ofs) {
     this.spark = spark;
     this.dataset = dataset;
     this.processingLevel = processingLevel;
     this.outputBucket = outputBucket;
     this.outputPrefix = outputPrefix;
     this.key = key;
-    this.fs = fs;
-    outputParquet = new StringBuilder(FileSystemPrefix.resolve(fs)).append(this.outputBucket).append("/").append(resolveErrorPrefix()).toString();
+    outputParquet = new StringBuilder(FileSystemPrefix.resolve(ofs)).append(this.outputBucket).append("/").append(resolveErrorPrefix()).toString();
   }
 
   public void handleError(Cast cast, Exception e) {

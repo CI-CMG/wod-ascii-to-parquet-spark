@@ -55,12 +55,13 @@ public class DatasetYearTrain implements Runnable {
   private final boolean overwrite;
   private final String keyPrefix;
   private final TransformationErrorHandler transformationErrorHandler;
-  private final FileSystemType fs;
+  private final FileSystemType ifs;
+  private final FileSystemType ofs;
 
   public DatasetYearTrain(SparkSession spark, S3Client s3, String dataset, String sourceBucket, Path tempDir,
       String processingLevel, String outputBucket,
       String outputPrefix, String key, boolean overwrite, int batchSize,
-      TransformationErrorHandler transformationErrorHandler, FileSystemType fs) {
+      TransformationErrorHandler transformationErrorHandler, FileSystemType ifs, FileSystemType ofs) {
     this.batchSize = batchSize;
     this.spark = spark;
     this.s3 = s3;
@@ -73,22 +74,23 @@ public class DatasetYearTrain implements Runnable {
     this.key = key;
     this.overwrite = overwrite;
     this.transformationErrorHandler = transformationErrorHandler;
-    this.fs = fs;
+    this.ifs = ifs;
+    this.ofs = ofs;
     keyPrefix = resolveKeyPrefix();
-    finalOutputParquet = new StringBuilder(FileSystemPrefix.resolve(fs)).append(outputBucket).append("/").append(keyPrefix).toString();
+    finalOutputParquet = new StringBuilder(FileSystemPrefix.resolve(ifs)).append(outputBucket).append("/").append(keyPrefix).toString();
     preProcessingOutputParquet = finalOutputParquet + "_temp";
   }
 
   @Override
   public void run() {
     try {
-      if (overwrite || !listObjects(fs, s3, outputBucket, keyPrefix + "/_temporary/", x -> true).isEmpty()) {
-        deletePrefix(fs, s3, outputBucket, keyPrefix + "/");
+      if (overwrite || !listObjects(ofs, s3, outputBucket, keyPrefix + "/_temporary/", x -> true).isEmpty()) {
+        deletePrefix(ofs, s3, outputBucket, keyPrefix + "/");
       }
-      if (exists(fs, s3, outputBucket, keyPrefix + "/_SUCCESS")) {
+      if (exists(ofs, s3, outputBucket, keyPrefix + "/_SUCCESS")) {
         System.err.println("Skipping existing " + preProcessingOutputParquet);
       } else {
-        if (fs == FileSystemType.local) {
+        if (ifs == FileSystemType.local) {
           Path file = Paths.get(sourceBucket).resolve(key);
           processFile(file);
         } else {
@@ -97,7 +99,7 @@ public class DatasetYearTrain implements Runnable {
           Path file = tempDir.resolve(key);
           mkdirForFile(file);
           try {
-            download(fs, s3, sourceBucket, key, file);
+            download(ifs, s3, sourceBucket, key, file);
             System.err.println("Done downloading s3://" + sourceBucket + "/" + key);
             processFile(file);
           } finally {
@@ -118,7 +120,7 @@ public class DatasetYearTrain implements Runnable {
   }
 
   private void deletePreprocessing() {
-    deletePrefix(fs, s3, outputBucket, keyPrefix + "_temp/");
+    deletePrefix(ofs, s3, outputBucket, keyPrefix + "_temp/");
   }
 
   private void finalizeAndSort() {

@@ -42,8 +42,6 @@ public class Sparkler implements Serializable, Runnable {
   private List<String> datasets;
   @Option(names = {"-p", "--processing-level"}, required = true, split = ",", defaultValue = "OBS", description = "A comma separated list of processing levels - Default: ${DEFAULT-VALUE}")
   private List<String> processingLevels;
-  @Option(names = {"-c", "--concurrency"}, required = true, defaultValue = "1", description = "The number of source files to process at a time")
-  private int concurrency;
   @Option(names = {"-o", "--overwrite"}, description = "Overwrite existing parquet stores if they already exist")
   private boolean overwrite = false;
 
@@ -69,8 +67,11 @@ public class Sparkler implements Serializable, Runnable {
   @Option(names = {"-bs", "--batch-size"}, description = "Number of casts to insert per batch")
   private int batchSize = 10000;
 
-  @Option(names = {"-fs", "--file-system"}, description = "Optimize S3 access for EMR")
-  private FileSystemType fs = FileSystemType.local;
+  @Option(names = {"-ifs", "--input-file-system"}, description = "local, s3, emr23 (Optimized S3 access for EMR)", defaultValue = "local")
+  private FileSystemType ifs = FileSystemType.local;
+
+  @Option(names = {"-ofs", "--output-file-system"}, description = "local, s3, emr23 (Optimized S3 access for EMR)", defaultValue = "local")
+  private FileSystemType ofs = FileSystemType.local;
 
   @Override
   public void run() {
@@ -99,14 +100,14 @@ public class Sparkler implements Serializable, Runnable {
     });
 
     S3Client s3 = null;
-    if (fs != FileSystemType.local) {
+    if (ifs != FileSystemType.local || ofs != FileSystemType.local) {
       S3ClientBuilder s3Builder = S3Client.builder();
-      if (sourceAccessKey != null) {
+      if (outputAccessKey != null) {
         s3Builder.credentialsProvider(StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(sourceAccessKey, sourceSecretKey)
+            AwsBasicCredentials.create(outputAccessKey, outputSecretKey)
         ));
       }
-      s3Builder.region(Region.of(sourceBucketRegion));
+      s3Builder.region(Region.of(outputBucketRegion));
       s3 = s3Builder.build();
     }
 
@@ -122,7 +123,7 @@ public class Sparkler implements Serializable, Runnable {
         outputPrefix,
         new TreeSet<>(datasets),
         new TreeSet<>(processingLevels),
-        overwrite, batchSize, fs);
+        overwrite, batchSize, ifs, ofs);
     try {
       executor.execute();
     } catch (IOException e) {

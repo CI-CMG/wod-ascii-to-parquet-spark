@@ -68,6 +68,7 @@ public class SparklerExecutorLocalTest {
           processingLevels,
           false,
           1000,
+          FileSystemType.local,
           FileSystemType.local
       );
       executor.execute();
