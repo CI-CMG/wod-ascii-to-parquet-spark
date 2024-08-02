@@ -6,7 +6,7 @@ arguments = $(year) $(dataset)
 should_transfer_files = YES
 transfer_input_files = wod-ascii-to-parquet-spark-${project.version}.jar, wod-ascii-to-parquet-spark-list.txt, wod-ascii-to-parquet.conf
 when_to_transfer_output = ON_EXIT
-transfer_output_files =
+transfer_output_files = ""
 
 
 log = wod-ascii-to-parquet-spark/$(ClusterId)/$(dataset)/$(year)/job.log
@@ -15,6 +15,6 @@ error = wod-ascii-to-parquet-spark/$(ClusterId)/$(dataset)/$(year)/job.err
 
 request_cpus = 2
 request_memory = 6GB
-request_disk = 6GB
+request_disk = 10GB
 
 queue year,dataset from wod-ascii-to-parquet-spark-list.txt
