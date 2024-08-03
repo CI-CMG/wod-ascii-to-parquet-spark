@@ -36,11 +36,11 @@ mkdir output
 spark-submit \
   --master 'local[4]' \
   --conf spark.cores.max=4 \
-  --driver-memory=6G \
+  --driver-memory=7G \
   --driver-java-options '-XX:ActiveProcessorCount=4' \
   --class edu.colorado.cires.wod.spark.w2p.Sparkler \
   wod-ascii-to-parquet-spark-${project.version}.jar \
-  -bs 4000 \
+  -bs 2000 \
   -td temp \
   -ib $(pwd)/input \
   -ob $(pwd)/output
