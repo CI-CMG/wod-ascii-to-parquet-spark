@@ -29,7 +29,7 @@
     <connection>scm:git:git@github.com:CI-CMG/wod-ascii-to-parquet-spark.git</connection>
     <developerConnection>scm:git:git@github.com:CI-CMG/wod-ascii-to-parquet-spark.git</developerConnection>
     <url>https://github.com/CI-CMG/wod-ascii-to-parquet-spark</url>
-    <tag>HEAD</tag>
+    <tag>2.0</tag>
   </scm>
 
   <distributionManagement>
