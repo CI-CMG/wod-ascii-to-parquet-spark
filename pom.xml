@@ -178,6 +178,11 @@
       <artifactId>aws-s3-outputstream</artifactId>
       <version>1.1.1</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+      <version>5.3.1</version>
+    </dependency>
   </dependencies>
 
   <reporting>
