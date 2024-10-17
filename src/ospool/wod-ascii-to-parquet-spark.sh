@@ -2,13 +2,6 @@
 
 set -e
 
-. wod-ascii-to-parquet.conf
-export AWS_ACCESS_KEY_ID="$aws_access_key_id"
-export AWS_SECRET_ACCESS_KEY="$aws_secret_access_key"
-export AWS_REGION=us-east-1
-
-set -x
-
 year="$1"
 dataset="$2"
 date_folder=$(date +%Y-%m)
@@ -22,16 +15,18 @@ export PATH="$SPARK_HOME/bin:$JAVA_HOME/bin:$PATH"
 
 if [[ $dataset = 'SUR' ]]; then
   file_name=SURF_ALL.gz
+  parquet_dir=SUR_ALL.parquet
 else
   file_name=${dataset}O${year}.gz
+  parquet_dir=${dataset}O${year}.parquet
 fi
 
 mkdir -p input/${dataset}/OBS
+mkdir -p ${date_folder}/data/ascii/${dataset}/OBS
 
-java -cp wod-ascii-to-parquet-spark-${project.version}.jar edu.colorado.cires.wod.spark.w2p.OsPoolUtils http-download --url https://www.ncei.noaa.gov/data/oceans/woa/WOD/YEARLY/${dataset}/OBS/${file_name} -o input/${dataset}/OBS/${file_name}
-
+java -cp wod-ascii-to-parquet-spark-2.1.0-SNAPSHOT.jar edu.colorado.cires.wod.spark.w2p.OsPoolUtils http-download --url https://www.ncei.noaa.gov/data/oceans/woa/WOD/YEARLY/${dataset}/OBS/${file_name} -o ${date_folder}/data/ascii/${dataset}/OBS/${file_name}
 mkdir temp
-mkdir output
+mkdir ${date_folder}/data/parquet
 
 spark-submit \
   --master 'local[4]' \
@@ -44,8 +39,11 @@ spark-submit \
   wod-ascii-to-parquet-spark-${project.version}.jar \
   -bs 2000 \
   -td temp \
-  -ib $(pwd)/input \
-  -ob $(pwd)/output
+  -ib $(pwd)/${date_folder}/data/ascii \
+  -ob $(pwd)/${date_folder}/data/parquet
 
-java -jar aws-cli-1.0.1-exe.jar s3 cp -r output s3://wod-test-resources/$date_folder/data/parquet
-java -jar aws-cli-1.0.1-exe.jar s3 cp -r input s3://wod-test-resources/$date_folder/data/ascii
+cd ${date_folder}/data/parquet/yearly/${dataset}/OBS
+tar -czf ${dataset}${year}.parquet.tar.gz ${parquet_dir}
+
+cd "$working_dir"
+tar -czf output.tar.gz ${date_folder}

@@ -49,9 +49,17 @@ Build the job list
 ./wod-ascii-to-parquet-build-list.sh
 ```
 
-Edit the wod-ascii-to-parquet.conf file and set the AWS credentials
+Edit the wod-ascii-to-parquet.conf file and set the username and access_point
+Note: can not contain spaces
 ```bash
 vim wod-ascii-to-parquet.conf
+```
+
+Edit the wod-ascii-to-parquet-spark.submit and set the username and access_point
+Note: can not contain spaces
+```bash
+username =
+access_point =
 ```
 
 Execute the job
@@ -61,7 +69,7 @@ condor_submit wod-ascii-to-parquet-spark.submit
 
 When the job is done, you should check that it all files completed successfully.
 
-```bash
+```bash:
 cp wod-ascii-to-parquet-spark-list.txt original-wod-ascii-to-parquet-spark-list.txt
 ./wod-ascii-to-parquet-verify.sh
 ```
@@ -70,7 +78,7 @@ with the files in the S3 bucket.  An output file called failed-wod-ascii-to-parq
 be created.  If there are values in this file, investigation will need to be done
 to determine the cause.  The OSPool output logs are useful. Also check for held jobs.
 
-To rerun these failed files:
+To rerun these failed files
 ```bash
 mv failed-wod-ascii-to-parquet-spark-list.txt wod-ascii-to-parquet-spark-list.txt
 condor_submit wod-ascii-to-parquet-spark.submit

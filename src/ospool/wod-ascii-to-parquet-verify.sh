@@ -1,12 +1,24 @@
-#!/bin/bash
-
-set -e
-
 . wod-ascii-to-parquet.conf
-export AWS_ACCESS_KEY_ID="$aws_access_key_id"
-export AWS_SECRET_ACCESS_KEY="$aws_secret_access_key"
-export AWS_REGION=us-east-1
+OSPOOL=/ospool/${access_point}/data/${username}
+home_dir="$PWD"
+cd ${OSPOOL}
+echo "$PWD"
+while read line; do
+  wod_line="$line"
+  IFS=',' read -r year dataset <<< ${line}
+  echo ${dataset}
+  echo ${year}
+  OUTPUT=${dataset}${year}.tar.gz
+  if [ -f "${OSPOOL}/${OUTPUT}" ]; then
+          echo "$OUTPUT found"
+          tar -xf $OUTPUT
+          rm $OUTPUT
+   else
+           echo "$OUTPUT does not exist."
+           echo "$wod_line" >> ${home_dir}/failed-wod-ascii-to-parquet-spark-list.txt
+   fi
 
-date_folder=$(date +%Y-%m)
+done < ${home_dir}/wod-ascii-to-parquet-spark-list.txt
 
-java -cp wod-ascii-to-parquet-spark-${project.version}.jar edu.colorado.cires.wod.spark.w2p.OsPoolUtils s3-list-missing -b s3://wod-test-resources/$date_folder/data/ascii -l original-wod-ascii-to-parquet-spark-list.txt -o failed-wod-ascii-to-parquet-spark-list.txt
+cd ${home_dir}
+echo "$PWD"

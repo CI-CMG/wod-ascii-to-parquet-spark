@@ -4,11 +4,18 @@ arguments = $(year) $(dataset)
 +JobBatchName = "WOD-ASCII-2-Parquet"
 
 should_transfer_files = YES
-transfer_input_files = OpenJDK11U-jre_x64_linux_hotspot_11.0.23_9.tar.gz, spark-3.4.3-bin-hadoop3-scala2.13.tgz, aws-cli-1.0.1-exe.jar, wod-ascii-to-parquet-spark-${project.version}.jar, wod-ascii-to-parquet.conf
+transfer_input_files = OpenJDK11U-jre_x64_linux_hotspot_11.0.23_9.tar.gz, spark-3.4.3-bin-hadoop3-scala2.13.tgz, aws-cli-1.0.1-exe.jar, wod-ascii-to-parquet-spark-${project.version}.jar
 when_to_transfer_output = ON_EXIT
-transfer_output_files = ""
 
+username =
+access_point =
+OSDF_LOCATION = osdf:///ospool/$(access_point)/data/$(username)/
+transfer_output_remaps = "output.tar.gz=$(OSDF_LOCATION)/$(dataset)$(year).tar.gz"
 
+periodic_release = (NumJobStarts < 5) && ((CurrentTime - EnteredCurrentStatus) > 15*60)
+periodic_remove = (NumJobStarts >= 5)
+
+starter_log = wod-ascii-to-parquet-spark/$(ClusterId)/$(dataset)/$(year)/job.starter.log
 log = wod-ascii-to-parquet-spark/$(ClusterId)/$(dataset)/$(year)/job.log
 output = wod-ascii-to-parquet-spark/$(ClusterId)/$(dataset)/$(year)/job.out
 error = wod-ascii-to-parquet-spark/$(ClusterId)/$(dataset)/$(year)/job.err
