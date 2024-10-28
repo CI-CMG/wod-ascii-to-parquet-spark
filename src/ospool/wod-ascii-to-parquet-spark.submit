@@ -12,8 +12,8 @@ access_point =
 OSDF_LOCATION = osdf:///ospool/$(access_point)/data/$(username)/
 transfer_output_remaps = "output.tar.gz=$(OSDF_LOCATION)/$(dataset)$(year).tar.gz"
 
-periodic_release = (NumJobStarts < 5) && ((CurrentTime - EnteredCurrentStatus) > 15*60)
-periodic_remove = (NumJobStarts >= 5)
+periodic_release = (NumJobStarts < 4) && ((CurrentTime - EnteredCurrentStatus) > 15*60)
+periodic_remove = (NumJobStarts >= 4)
 
 starter_log = wod-ascii-to-parquet-spark/$(ClusterId)/$(dataset)/$(year)/job.starter.log
 log = wod-ascii-to-parquet-spark/$(ClusterId)/$(dataset)/$(year)/job.log

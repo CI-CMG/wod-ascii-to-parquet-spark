@@ -24,7 +24,7 @@ fi
 mkdir -p input/${dataset}/OBS
 mkdir -p ${date_folder}/data/ascii/${dataset}/OBS
 
-java -cp wod-ascii-to-parquet-spark-2.1.0-SNAPSHOT.jar edu.colorado.cires.wod.spark.w2p.OsPoolUtils http-download --url https://www.ncei.noaa.gov/data/oceans/woa/WOD/YEARLY/${dataset}/OBS/${file_name} -o ${date_folder}/data/ascii/${dataset}/OBS/${file_name}
+java -cp wod-ascii-to-parquet-spark-${project.version}.jar edu.colorado.cires.wod.spark.w2p.OsPoolUtils http-download --url https://www.ncei.noaa.gov/data/oceans/woa/WOD/YEARLY/${dataset}/OBS/${file_name} -o ${date_folder}/data/ascii/${dataset}/OBS/${file_name}
 mkdir temp
 mkdir ${date_folder}/data/parquet
 
