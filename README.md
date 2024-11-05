@@ -56,6 +56,7 @@ vim wod-ascii-to-parquet.conf
 ```
 
 Edit the wod-ascii-to-parquet-spark.submit and set the username and access_point
+Note: can not contain spaces
 ```bash
 username =
 access_point =
