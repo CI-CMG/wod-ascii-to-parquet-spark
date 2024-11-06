@@ -8,7 +8,7 @@ s3_secret_key="$3"
 external_host_ip="$4"
 internal_host_ip="$5"
 
-/spark-3.4.3-bin-hadoop3-scala2.13/bin/spark-submit \
+/spark-3.5.3-bin-hadoop3-scala2.13/bin/spark-submit \
   --driver-memory=6G \
   --executor-memory 3g \
   --num-executors 100 \
@@ -27,4 +27,4 @@ internal_host_ip="$5"
   -ip
   -ob $bucket
 
-/spark-3.4.3-bin-hadoop3-scala2.13/bin/spark-submit --driver-memory 1g --executor-memory 1g --num-executors 1 --master spark://35.89.244.178:7077  --conf spark.driver.host=35.89.244.178 --conf spark.driver.port=8088 --conf spark.driver.bindAddress=172.31.21.220 --conf spark.blockManager.port=40332 --class foo.HelloWorld hello-world-spark-1.0-SNAPSHOT.jar
+/spark-3.5.3-bin-hadoop3-scala2.13/bin/spark-submit --driver-memory 1g --executor-memory 1g --num-executors 1 --master spark://35.89.244.178:7077  --conf spark.driver.host=35.89.244.178 --conf spark.driver.port=8088 --conf spark.driver.bindAddress=172.31.21.220 --conf spark.blockManager.port=40332 --class foo.HelloWorld hello-world-spark-1.0-SNAPSHOT.jar

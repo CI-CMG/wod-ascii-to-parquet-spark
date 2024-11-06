@@ -21,7 +21,7 @@ when the job is submitted.  Run the following if these files do not exist.
 
 ```bash
 wget https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.23%2B9/OpenJDK11U-jre_x64_linux_hotspot_11.0.23_9.tar.gz
-wget https://downloads.apache.org/spark/spark-3.4.3/spark-3.4.3-bin-hadoop3-scala2.13.tgz
+wget https://downloads.apache.org/spark/spark-3.5.3/spark-3.5.3-bin-hadoop3-scala2.13.tgz
 wget https://cires-cmg-trackline-repository.s3.us-west-2.amazonaws.com/release/edu/colorado/cires/cmg/aws/aws-cli/1.0.1/aws-cli-1.0.1-exe.jar
 ```
 
