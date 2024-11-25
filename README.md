@@ -41,7 +41,7 @@ ssh ospool
 
 Unzip the bundle
 ```bash
-unzip wod-ascii-to-parquet-spark-1.1.0.zip
+unzip wod-ascii-to-parquet-spark-2.2.0.zip
 ```
 
 Build the job list
