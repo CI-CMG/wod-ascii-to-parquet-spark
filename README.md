@@ -29,7 +29,7 @@ wget https://cires-cmg-trackline-repository.s3.us-west-2.amazonaws.com/release/e
 
 Copy the zip file to your OSPool gateway (assuming you have an ospool SSH alias)
 ```bash
-scp wod-ascii-to-parquet-spark-1.1.0.zip ospool:~/
+scp wod-ascii-to-parquet-spark-2.2.1.zip ospool:~/
 ```
 
 SSH into the OSPool gateway (assuming you have an ospool SSH alias)
@@ -41,7 +41,7 @@ ssh ospool
 
 Unzip the bundle
 ```bash
-unzip wod-ascii-to-parquet-spark-2.2.0.zip
+unzip wod-ascii-to-parquet-spark-2.2.1.zip
 ```
 
 Build the job list
@@ -56,7 +56,6 @@ vim wod-ascii-to-parquet.conf
 ```
 
 Edit the wod-ascii-to-parquet-spark.submit and set the username and access_point
-Note: can not contain spaces
 ```bash
 username =
 access_point =
